@@ -1,26 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Users, FileText, Upload, Plus, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-
 import { useAuth, friendlyAuthError } from '@/context/AuthContext';
 import { AuthComponent } from '@/components/ui/sign-up';
 
-export default function AdminDashboard() {
-    const location = useLocation();
-    const navigate = useNavigate();
+// ─────────────────────────────────────────────────────────────────────────────
+// SECRET TRIGGER CONFIG
+// Desktop  → press C then R then S (within 2 seconds each)
+// Mobile   → tap logo 5 times within 3 seconds
+// Router   → <Route path="/portal-cRs7x9mK" element={<AdminDashboard />} />
+// ─────────────────────────────────────────────────────────────────────────────
+const ADMIN_ROUTE = '/portal-cRs7x9mK';
+const KEY_SEQUENCE = ['c', 'r', 's'];
+const LOGO_TAP_COUNT = 5;
 
-    // Check for secret shared link directly in URL or in prior memory
-    const query = new URLSearchParams(location.search);
-    const hasAccessKey = query.get('access') === 'cornerstone2024';
+// ─────────────────────────────────────────────────────────────────────────────
+// Hook: useAdminTrigger
+// Import and use in your LandingPage / Layout:
+//
+//   import { useAdminTrigger } from '@/pages/AdminDashboard';
+//   const { logoTapHandler } = useAdminTrigger();
+//   <img src="/logo.jpeg" onClick={logoTapHandler} />
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAdminTrigger() {
+    const navigate = useNavigate();
+    const [_tapCount, setTapCount] = useState(0);
+    const tapTimer = useRef<number | undefined>(undefined);
+
+    // Desktop: keyboard sequence C → R → S
+    useEffect(() => {
+        let progress = 0;
+        let sequenceTimer: number | undefined;
+
+        const handleKey = (e: KeyboardEvent) => {
+            const tag = (e.target as HTMLElement).tagName.toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+            if (e.key.toLowerCase() === KEY_SEQUENCE[progress]) {
+                progress++;
+                clearTimeout(sequenceTimer);
+                sequenceTimer = window.setTimeout(() => { progress = 0; }, 2000);
+                if (progress === KEY_SEQUENCE.length) {
+                    progress = 0;
+                    clearTimeout(sequenceTimer);
+                    navigate(ADMIN_ROUTE);
+                }
+            } else {
+                progress = 0;
+                clearTimeout(sequenceTimer);
+            }
+        };
+
+        window.addEventListener('keydown', handleKey);
+        return () => {
+            window.removeEventListener('keydown', handleKey);
+            clearTimeout(sequenceTimer);
+        };
+    }, [navigate]);
+
+    // Mobile: logo tap 5 times within 3 seconds
+    const logoTapHandler = () => {
+        setTapCount(prev => {
+            const next = prev + 1;
+            clearTimeout(tapTimer.current);
+            tapTimer.current = window.setTimeout(() => setTapCount(0), 3000);
+            if (next >= LOGO_TAP_COUNT) {
+                clearTimeout(tapTimer.current);
+                setTapCount(0);
+                navigate(ADMIN_ROUTE);
+            }
+            return next;
+        });
+    };
+
+    return { logoTapHandler };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AdminDashboard Component
+// ─────────────────────────────────────────────────────────────────────────────
+export default function AdminDashboard() {
+    const navigate = useNavigate();
 
     const { user, login, register, loginWithGoogle, logout } = useAuth();
     const [isLoginMode, setIsLoginMode] = useState(true);
     const [isAuthorized, setIsAuthorized] = useState(false);
+    const [authChecked, setAuthChecked] = useState(false); // ✅ NEW: prevents blank screen
 
     const [activeTab, setActiveTab] = useState<'overview' | 'publications' | 'content'>('overview');
     const [isPublishing, setIsPublishing] = useState(false);
@@ -50,18 +120,29 @@ export default function AdminDashboard() {
         references: ''
     });
 
+    // Dashboard Stats State
+    const [submissionsCount, setSubmissionsCount] = useState<number>(0);
+    const [registeredUsersCount, setRegisteredUsersCount] = useState<number>(0);
+    const [processedTodayCount, setProcessedTodayCount] = useState<number>(0);
+    const [recentProcesses, setRecentProcesses] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // ✅ SECURE: Wait for user to be defined before checking auth
     useEffect(() => {
-        const isAdminEmail = user?.email === 'info.cornerstoneresearch@gmail.com';
-        if (hasAccessKey || localStorage.getItem('adminAccess') === 'true' || isAdminEmail) {
-            setIsAuthorized(true);
-            // Persist the admin access if they used the secret key or admin email
-            if (hasAccessKey || isAdminEmail) {
-                localStorage.setItem('adminAccess', 'true');
-            }
-        } else {
-            setIsAuthorized(false);
+        if (user !== undefined) {
+            const isAdminEmail = user?.email === 'info.cornerstoneresearch@gmail.com';
+            setIsAuthorized(isAdminEmail);
+            setAuthChecked(true);
         }
-    }, [hasAccessKey, user]);
+    }, [user]);
+
+    // ✅ Safety net: if user takes too long, still show login after 3 seconds
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setAuthChecked(true);
+        }, 3000);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handlePubChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -97,7 +178,6 @@ export default function AdminDashboard() {
             if (error) throw error;
 
             toast.success("Publication added successfully!");
-            // Reset form
             setPubForm({
                 title: '', author: '', authorEmail: '', date: '', location: '', volume: '',
                 background: '', objectives: '', methods: '', results: '', conclusion: '',
@@ -106,36 +186,19 @@ export default function AdminDashboard() {
             setActiveTab('overview');
         } catch (err: any) {
             console.error("Publishing error:", err);
-            toast.error(err.message || "Failed to publish article. Please ensure 'articles' table exists.");
+            toast.error(err.message || "Failed to publish article.");
         } finally {
             setIsPublishing(false);
         }
     };
 
-    // Remember access if valid key was just provided in URL
-    useEffect(() => {
-        if (hasAccessKey) {
-            localStorage.setItem('adminAccess', 'true');
-            // Optionally remove it from the URL string for cleaner sharing / less leaking visually, but since we want them to be able to share the copied URL, we'll keep it as is.
-        }
-    }, [hasAccessKey]);
-
-    // Mock data for submission counts
-    const [submissionsCount, setSubmissionsCount] = useState<number>(0);
-    const [registeredUsersCount, setRegisteredUsersCount] = useState<number>(0);
-    const [processedTodayCount, setProcessedTodayCount] = useState<number>(0);
-    const [recentProcesses, setRecentProcesses] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
     const fetchDashboardData = async () => {
         setIsLoading(true);
         try {
-            // Fetch Submissions Count
             const { count: subCount, error: subError } = await supabase
                 .from('submissions')
                 .select('*', { count: 'exact', head: true });
 
-            // Fetch Recent Processes
             const { data: recent, error: recentError } = await supabase
                 .from('submissions')
                 .select('*')
@@ -143,10 +206,10 @@ export default function AdminDashboard() {
                 .limit(5);
 
             if (!subError && subCount !== null) setSubmissionsCount(subCount);
-            else setSubmissionsCount(12); // Mock fallback
+            else setSubmissionsCount(12);
 
-            setRegisteredUsersCount(45); // Mock fallback for non-existent profiles table
-            setProcessedTodayCount(3); // Mock fallback
+            setRegisteredUsersCount(45);
+            setProcessedTodayCount(3);
 
             if (!recentError && recent && recent.length > 0) {
                 setRecentProcesses(recent);
@@ -174,9 +237,7 @@ export default function AdminDashboard() {
             if (error) throw error;
             if (data) {
                 const contentMap: any = {};
-                data.forEach((row: any) => {
-                    contentMap[row.id] = row.content;
-                });
+                data.forEach((row: any) => { contentMap[row.id] = row.content; });
                 setJournalContent({
                     editorial: contentMap.editorial || '',
                     past_issues: contentMap.past_issues || '',
@@ -189,15 +250,37 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => {
-        fetchDashboardData();
-        if (isAuthorized) fetchJournalContent();
+        if (isAuthorized) {
+            fetchDashboardData();
+            fetchJournalContent();
+        }
     }, [isAuthorized]);
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // LOADING — show spinner while checking auth (fixes blank screen on refresh)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (!authChecked) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-white">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 text-sm font-medium">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // NOT AUTHORIZED — show login screen
+    // ─────────────────────────────────────────────────────────────────────────
     if (!isAuthorized) {
         return (
             <div className="relative min-h-screen bg-white">
-                <Button variant="ghost" className="absolute top-4 left-4 z-50 text-gray-500 hover:text-gray-900" onClick={() => navigate('/')}>
+                <Button
+                    variant="ghost"
+                    className="absolute top-4 left-4 z-50 text-gray-500 hover:text-gray-900"
+                    onClick={() => navigate('/')}
+                >
                     <ArrowLeft className="w-4 h-4 mr-2" /> Return to Website
                 </Button>
                 <AuthComponent
@@ -214,12 +297,6 @@ export default function AdminDashboard() {
                     onEmailSubmit={async (email, password) => {
                         try {
                             if (isLoginMode) {
-                                // Additional logic for checking admin access
-                                if (email === 'info.cornerstoneresearch@gmail.com' && password === 'Corner1@') {
-                                    localStorage.setItem('adminAccess', 'true');
-                                    setIsAuthorized(true);
-                                    return;
-                                }
                                 await login(email, password);
                             } else {
                                 const { needsConfirmation } = await register("Admin Candidate", email, password);
@@ -229,14 +306,19 @@ export default function AdminDashboard() {
                             throw new Error(friendlyAuthError(err) || err.message);
                         }
                     }}
-                    onSuccess={() => {}} 
+                    onSuccess={() => {}}
                 />
             </div>
         );
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // AUTHORIZED — show admin dashboard
+    // ─────────────────────────────────────────────────────────────────────────
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
+
+            {/* ── Header ── */}
             <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16 w-full">
@@ -250,24 +332,44 @@ export default function AdminDashboard() {
                                 </h1>
                             </div>
                             <nav className="flex gap-4">
-                                <button onClick={() => setActiveTab('overview')} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${activeTab === 'overview' ? 'bg-pink-50 text-[#d63384]' : 'text-gray-500 hover:text-gray-700'}`}>Overview</button>
-                                <button onClick={() => setActiveTab('publications')} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${activeTab === 'publications' ? 'bg-pink-50 text-[#d63384]' : 'text-gray-500 hover:text-gray-700'}`}>Publications</button>
-                                <button onClick={() => setActiveTab('content')} className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${activeTab === 'content' ? 'bg-pink-50 text-[#d63384]' : 'text-gray-500 hover:text-gray-700'}`}>Manage Portal Content</button>
+                                {(['overview', 'publications', 'content'] as const).map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all capitalize ${
+                                            activeTab === tab
+                                                ? 'bg-pink-50 text-[#d63384]'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        {tab === 'content' ? 'Manage Portal Content' : tab}
+                                    </button>
+                                ))}
                             </nav>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={async () => { 
-                            await logout();
-                            localStorage.removeItem('adminAccess'); 
-                            setIsAuthorized(false); 
-                            navigate('/');
-                        }} className="text-gray-500">Log Out</Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                                await logout();
+                                setIsAuthorized(false);
+                                setAuthChecked(false);
+                                navigate('/');
+                            }}
+                            className="text-gray-500"
+                        >
+                            Log Out
+                        </Button>
                     </div>
                 </div>
             </header>
 
+            {/* ── Main ── */}
             <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
                 <AnimatePresence mode="wait">
-                    {activeTab === 'overview' ? (
+
+                    {/* ── OVERVIEW TAB ── */}
+                    {activeTab === 'overview' && (
                         <motion.div
                             key="overview"
                             initial={{ opacity: 0, x: -20 }}
@@ -316,8 +418,8 @@ export default function AdminDashboard() {
                                 </h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                                     {[
-                                        { label: 'Add Publication', icon: Plus, color: 'pink', tab: 'publications' },
-                                        { label: 'Journal Sections', icon: FileText, color: 'pink', tab: 'content' },
+                                        { label: 'Add Publication', icon: Plus, color: 'pink', tab: 'publications' as const },
+                                        { label: 'Journal Sections', icon: FileText, color: 'pink', tab: 'content' as const },
                                         { label: 'Manage Users', icon: Users, color: 'amber', tab: null },
                                         { label: 'Reports', icon: FileText, color: 'indigo', tab: null }
                                     ].map((action, i) => (
@@ -325,7 +427,7 @@ export default function AdminDashboard() {
                                             key={i}
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
-                                            onClick={() => action.tab ? setActiveTab(action.tab as any) : null}
+                                            onClick={() => action.tab ? setActiveTab(action.tab) : undefined}
                                             className={`flex flex-col items-center justify-center p-8 bg-${action.color}-50/50 border border-${action.color}-100 rounded-3xl hover:bg-${action.color}-50 transition-all group`}
                                         >
                                             <div className={`w-14 h-14 rounded-2xl bg-${action.color}-100 flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform`}>
@@ -343,21 +445,26 @@ export default function AdminDashboard() {
                                     ) : recentProcesses.length > 0 ? (
                                         recentProcesses.map((process, idx) => (
                                             <motion.div
+                                                key={idx}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: idx * 0.1 }}
-                                                key={idx}
-                                                className="flex items-center gap-4">
+                                                className="flex items-center gap-4"
+                                            >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center">
                                                         <FileText className="w-6 h-6 text-pink-500" />
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-gray-900 text-sm md:text-base">{process.title || `Manuscript Application`} - #{process.id}</p>
-                                                        <p className="text-xs md:text-sm text-gray-500">Submitted by {process.email || "Unknown"}</p>
+                                                        <p className="font-bold text-gray-900 text-sm md:text-base">
+                                                            {process.title || 'Manuscript Application'} - #{process.id}
+                                                        </p>
+                                                        <p className="text-xs md:text-sm text-gray-500">
+                                                            Submitted by {process.email || 'Unknown'}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <span className={`px-4 py-1.5 rounded-full text-xs font-bold ${process.status === 'Completed' ? 'bg-pink-100 text-pink-700' : 'bg-pink-100 text-pink-700'}`}>
+                                                <span className="px-4 py-1.5 rounded-full text-xs font-bold bg-pink-100 text-pink-700">
                                                     {process.status}
                                                 </span>
                                             </motion.div>
@@ -368,7 +475,10 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         </motion.div>
-                    ) : activeTab === 'publications' ? (
+                    )}
+
+                    {/* ── PUBLICATIONS TAB ── */}
+                    {activeTab === 'publications' && (
                         <motion.div
                             key="publications"
                             initial={{ opacity: 0, x: 20 }}
@@ -377,7 +487,6 @@ export default function AdminDashboard() {
                             transition={{ duration: 0.3 }}
                             className="max-w-4xl mx-auto py-8"
                         >
-                            {/* Previous Publication Form Content */}
                             <div className="bg-white rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 p-8 md:p-12">
                                 <div className="flex items-center gap-4 mb-10">
                                     <div className="p-4 bg-pink-500 rounded-2xl shadow-lg ring-4 ring-pink-100">
@@ -390,29 +499,35 @@ export default function AdminDashboard() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 ml-1">Title <span className="text-rose-500">*</span></label>
-                                        <input name="title" value={pubForm.title} onChange={handlePubChange} placeholder="Enter publication title" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 ml-1">Author Name <span className="text-rose-500">*</span></label>
-                                        <input name="author" value={pubForm.author} onChange={handlePubChange} placeholder="Enter author name" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 ml-1">Email <span className="text-rose-500">*</span></label>
-                                        <input name="authorEmail" value={pubForm.authorEmail} onChange={handlePubChange} placeholder="Enter contact email" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
-                                    </div>
+                                    {[
+                                        { name: 'title',       label: 'Title',        placeholder: 'Enter publication title', required: true },
+                                        { name: 'author',      label: 'Author Name',  placeholder: 'Enter author name',       required: true },
+                                        { name: 'authorEmail', label: 'Email',        placeholder: 'Enter contact email',     required: true },
+                                        { name: 'location',    label: 'Location',     placeholder: 'City, Country',           required: false },
+                                        { name: 'volume',      label: 'Volume/Issue', placeholder: 'e.g. Vol 2, Issue 4',    required: false },
+                                    ].map(field => (
+                                        <div key={field.name} className="space-y-2">
+                                            <label className="text-sm font-bold text-gray-700 ml-1">
+                                                {field.label} {field.required && <span className="text-rose-500">*</span>}
+                                            </label>
+                                            <input
+                                                name={field.name}
+                                                value={(pubForm as any)[field.name]}
+                                                onChange={handlePubChange}
+                                                placeholder={field.placeholder}
+                                                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400"
+                                            />
+                                        </div>
+                                    ))}
                                     <div className="space-y-2">
                                         <label className="text-sm font-bold text-gray-700 ml-1">Date</label>
-                                        <input name="date" value={pubForm.date} onChange={handlePubChange} type="date" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 ml-1">Location</label>
-                                        <input name="location" value={pubForm.location} onChange={handlePubChange} placeholder="City, Country" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-bold text-gray-700 ml-1">Volume/Issue</label>
-                                        <input name="volume" value={pubForm.volume} onChange={handlePubChange} placeholder="e.g. Vol 2, Issue 4" className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
+                                        <input
+                                            name="date"
+                                            value={pubForm.date}
+                                            onChange={handlePubChange}
+                                            type="date"
+                                            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all"
+                                        />
                                     </div>
                                 </div>
 
@@ -433,15 +548,21 @@ export default function AdminDashboard() {
                                     </h3>
                                     <div className="space-y-8">
                                         {[
-                                            { name: 'background', label: 'Background', placeholder: 'Problem statement and context...' },
+                                            { name: 'background', label: 'Background',       placeholder: 'Problem statement and context...' },
                                             { name: 'objectives', label: 'Aim & Objectives', placeholder: 'What does this study aim to achieve?' },
-                                            { name: 'methods', label: 'Methods', placeholder: 'Design, participants, materials...' },
-                                            { name: 'results', label: 'Results', placeholder: 'Data analysis and primary findings...' },
-                                            { name: 'conclusion', label: 'Conclusion', placeholder: 'Implications for practice...' }
-                                        ].map((field) => (
+                                            { name: 'methods',    label: 'Methods',           placeholder: 'Design, participants, materials...' },
+                                            { name: 'results',    label: 'Results',            placeholder: 'Data analysis and primary findings...' },
+                                            { name: 'conclusion', label: 'Conclusion',         placeholder: 'Implications for practice...' }
+                                        ].map(field => (
                                             <div key={field.name} className="space-y-2">
                                                 <label className="text-sm font-bold text-gray-700 ml-1">{field.label}</label>
-                                                <textarea name={field.name} value={(pubForm as any)[field.name]} onChange={handlePubChange} placeholder={field.placeholder} className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl h-40 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none placeholder:text-gray-400"></textarea>
+                                                <textarea
+                                                    name={field.name}
+                                                    value={(pubForm as any)[field.name]}
+                                                    onChange={handlePubChange}
+                                                    placeholder={field.placeholder}
+                                                    className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl h-40 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none placeholder:text-gray-400"
+                                                />
                                             </div>
                                         ))}
                                     </div>
@@ -452,11 +573,23 @@ export default function AdminDashboard() {
                                     <div className="space-y-8">
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-gray-700 ml-1">Keywords / Search Tags</label>
-                                            <input name="keywords" value={pubForm.keywords} onChange={handlePubChange} placeholder="e.g. Cardiology, Public Health, Nursing Care (Comma separated)" className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400" />
+                                            <input
+                                                name="keywords"
+                                                value={pubForm.keywords}
+                                                onChange={handlePubChange}
+                                                placeholder="e.g. Cardiology, Public Health, Nursing Care (comma separated)"
+                                                className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all placeholder:text-gray-400"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold text-gray-700 ml-1">References</label>
-                                            <textarea name="references" value={pubForm.references} onChange={handlePubChange} placeholder="Standard citation format (APA/MLA)..." className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl h-48 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none placeholder:text-gray-400"></textarea>
+                                            <textarea
+                                                name="references"
+                                                value={pubForm.references}
+                                                onChange={handlePubChange}
+                                                placeholder="Standard citation format (APA/MLA)..."
+                                                className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl h-48 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none placeholder:text-gray-400"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -478,7 +611,10 @@ export default function AdminDashboard() {
                                 </Button>
                             </div>
                         </motion.div>
-                    ) : (
+                    )}
+
+                    {/* ── CONTENT TAB ── */}
+                    {activeTab === 'content' && (
                         <motion.div
                             key="content"
                             initial={{ opacity: 0, x: 20 }}
@@ -506,7 +642,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <textarea
                                             value={journalContent.editorial}
-                                            onChange={(e) => setJournalContent(prev => ({ ...prev, editorial: e.target.value }))}
+                                            onChange={e => setJournalContent(prev => ({ ...prev, editorial: e.target.value }))}
                                             className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl h-48 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none font-mono text-sm"
                                         />
                                     </div>
@@ -515,7 +651,7 @@ export default function AdminDashboard() {
                                         <label className="text-lg font-bold text-gray-900">Past Issues Message</label>
                                         <textarea
                                             value={journalContent.past_issues}
-                                            onChange={(e) => setJournalContent(prev => ({ ...prev, past_issues: e.target.value }))}
+                                            onChange={e => setJournalContent(prev => ({ ...prev, past_issues: e.target.value }))}
                                             className="w-full p-5 bg-gray-50 border border-gray-200 rounded-2xl h-32 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none"
                                         />
                                     </div>
@@ -527,7 +663,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <textarea
                                             value={journalContent.sample_article}
-                                            onChange={(e) => setJournalContent(prev => ({ ...prev, sample_article: e.target.value }))}
+                                            onChange={e => setJournalContent(prev => ({ ...prev, sample_article: e.target.value }))}
                                             className="w-full p-5 bg-gray-900 text-pink-400 border border-gray-700 rounded-2xl h-64 focus:ring-4 focus:ring-pink-500/10 focus:border-pink-500 outline-none transition-all resize-none font-mono text-xs"
                                         />
                                     </div>
@@ -537,18 +673,14 @@ export default function AdminDashboard() {
                                             setIsSavingContent(true);
                                             try {
                                                 const updates = [
-                                                    { id: 'editorial', content: journalContent.editorial, title: 'Editorial Board' },
-                                                    { id: 'past_issues', content: journalContent.past_issues, title: 'Past Issues' },
+                                                    { id: 'editorial',      content: journalContent.editorial,      title: 'Editorial Board' },
+                                                    { id: 'past_issues',    content: journalContent.past_issues,    title: 'Past Issues' },
                                                     { id: 'sample_article', content: journalContent.sample_article, title: 'Sample Article' }
                                                 ];
-
                                                 for (const update of updates) {
-                                                    const { error } = await supabase
-                                                        .from('journal_sections')
-                                                        .upsert(update);
+                                                    const { error } = await supabase.from('journal_sections').upsert(update);
                                                     if (error) throw error;
                                                 }
-
                                                 toast.success("Portal content updated successfully!");
                                             } catch (err: any) {
                                                 toast.error("Failed to update content: " + err.message);
@@ -559,12 +691,16 @@ export default function AdminDashboard() {
                                         disabled={isSavingContent}
                                         className="w-full py-8 bg-black hover:bg-gray-800 text-white font-bold text-xl rounded-3xl shadow-2xl transition-all"
                                     >
-                                        {isSavingContent ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 'Update Public Portal Content'}
+                                        {isSavingContent
+                                            ? <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                                            : 'Update Public Portal Content'
+                                        }
                                     </Button>
                                 </div>
                             </div>
                         </motion.div>
                     )}
+
                 </AnimatePresence>
             </main>
         </div>

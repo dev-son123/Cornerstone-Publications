@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAdminTrigger } from '@/pages/AdminDashboard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -12,7 +13,8 @@ import {
   CheckCircle,
   Users,
   Award,
-  Phone
+  Phone,
+  Mail
 } from 'lucide-react';
 import { SocialIcons } from '@/components/ui/social-icons';
 import { AdvancedNav } from '@/components/ui/advanced-nav';
@@ -60,6 +62,9 @@ const stats = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
+
+  // ✅ Admin trigger: tap logo 5x on mobile, or press C→R→S on desktop
+  const { logoTapHandler } = useAdminTrigger();
 
   useEffect(() => {
     // Check for hash on mount to scroll to section
@@ -152,12 +157,13 @@ export default function LandingPage() {
                 {/* Decorative ring */}
                 <div className="absolute -inset-4 rounded-full border-2 border-dashed border-[#d63384]/20 animate-spin" style={{ animationDuration: '20s' }}></div>
                 <div className="absolute -inset-8 rounded-full border border-[#FFB7C5]/30"></div>
-                {/* Logo image */}
+                {/* Logo image — tap 5x on mobile to open admin */}
                 <div className="relative w-72 h-72 rounded-full overflow-hidden shadow-2xl ring-4 ring-[#d63384]/20 ring-offset-4 ring-offset-white">
                   <img
                     src="/logo.jpeg"
                     alt="Cornerstone Research and Publication Services"
                     className="w-full h-full object-cover"
+                    onClick={logoTapHandler}
                   />
                 </div>
                 {/* Floating badge */}
@@ -282,7 +288,13 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <img src="/logo.jpeg" alt="Cornerstone" className="w-10 h-10 object-contain rounded flex-shrink-0" />
+                {/* ✅ Footer logo — tap 5x on mobile to open admin */}
+                <img
+                  src="/logo.jpeg"
+                  alt="Cornerstone"
+                  className="w-10 h-10 object-contain rounded flex-shrink-0"
+                  onClick={logoTapHandler}
+                />
                 <span className="text-base font-bold leading-tight">
                   Cornerstone Research<br />
                   <span className="text-sm font-semibold text-[#d63384]">and Publication Services</span>
@@ -318,6 +330,10 @@ export default function LandingPage() {
                 <li className="flex items-center">
                   <Phone className="w-4 h-4 mr-2 text-[#d63384]" />
                   <a href="tel:+919962900969" className="hover:text-[#d63384]">+91 9962900969</a>
+                </li>
+                <li className="flex items-center">
+                  <Mail className="w-4 h-4 mr-2 text-[#d63384]" />
+                  <a href="mailto:info.cornerstone@gmail.com" className="hover:text-[#d63384]">info.cornerstone@gmail.com</a>
                 </li>
               </ul>
               <p className="text-sm text-gray-500 mt-4 mb-3">Follow Us</p>

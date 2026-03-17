@@ -1,5 +1,4 @@
-import { useLocation } from 'react-router-dom';
-import { AdvancedNav } from '@/components/ui/advanced-nav';
+// import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, BookOpen, Award, FileText, MapPin, Mail, Phone, ExternalLink, GraduationCap } from 'lucide-react';
 import { SocialIcons } from '@/components/ui/social-icons';
@@ -7,10 +6,6 @@ import { SocialIcons } from '@/components/ui/social-icons';
 import { motion } from 'framer-motion';
 
 export default function PhDMentorship() {
-    const location = useLocation();
-    const query = new URLSearchParams(location.search);
-    const isStandalone = query.get('standalone') === 'true' || (typeof document !== 'undefined' && !document.referrer.includes(window.location.hostname));
-
     const fadeInUp: any = {
         hidden: { opacity: 0, y: 30 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
@@ -26,8 +21,6 @@ export default function PhDMentorship() {
 
     return (
         <div className="min-h-screen bg-white">
-            {!isStandalone && <AdvancedNav />}
-
             {/* Hero Section */}
             {/* @ts-ignore */}
             <motion.section
@@ -432,7 +425,7 @@ export default function PhDMentorship() {
                 </a>
                 <a
                     href="tel:+919962900969"
-                    className="flexItems-center justify-center p-4 bg-gradient-to-r from-[#d63384] to-[#ff8fab] text-white rounded-full shadow-[0_10px_25px_rgba(214,51,132,0.4)] hover:shadow-[0_15px_35px_rgba(214,51,132,0.6)] hover:-translate-y-1 transition-all duration-300 group"
+                    className="flex items-center justify-center p-4 bg-gradient-to-r from-[#d63384] to-[#ff8fab] text-white rounded-full shadow-[0_10px_25px_rgba(214,51,132,0.4)] hover:shadow-[0_15px_35px_rgba(214,51,132,0.6)] hover:-translate-y-1 transition-all duration-300 group"
                 >
                     <Phone className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 </a>

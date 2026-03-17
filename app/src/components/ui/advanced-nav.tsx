@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Home, BookOpen, Microscope, Mail, FlaskConical } from 'lucide-react';
+import { useAdminTrigger } from '@/pages/AdminDashboard';
 
 export const navItems = [
     { label: 'Home', href: '/', icon: Home },
@@ -16,6 +17,7 @@ export function AdvancedNav() {
     const location = useLocation();
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const { logoTapHandler } = useAdminTrigger();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -50,7 +52,7 @@ export function AdvancedNav() {
                 {/* Logo Area */}
                 <div className={`flex items-center transition-all duration-500 flex-shrink-0 ${isScrolled ? 'mb-8 flex-col gap-2' : ''}`}>
                     <button onClick={() => navigate('/')} className={`flex items-center gap-3 transition-all duration-500 ${isScrolled ? 'flex-col' : ''}`}>
-                        <img src="/logo.jpeg" alt="Logo" className={`object-contain rounded transition-all duration-500 ${isScrolled ? 'w-12 h-12' : 'w-10 h-10'}`} />
+                        <img src="/logo.jpeg" alt="Logo" onClick={logoTapHandler} className={`object-contain rounded transition-all duration-500 ${isScrolled ? 'w-12 h-12' : 'w-10 h-10'} cursor-pointer`} />
                         <div className={`overflow-hidden transition-all duration-500 ${isScrolled ? 'w-0 h-0 opacity-0' : 'w-[250px] opacity-100'}`}>
                             <span className="text-lg font-bold text-gray-900 leading-tight text-left block w-[250px]">
                                 Cornerstone Research<br />
@@ -107,7 +109,7 @@ export function AdvancedNav() {
             {/* Mobile Nav */}
             <nav className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50 px-4 flex items-center justify-between">
                 <button onClick={() => navigate('/')} className="flex items-center gap-3">
-                    <img src="/logo.jpeg" alt="Logo" className="w-8 h-8 object-contain rounded" />
+                    <img src="/logo.jpeg" alt="Logo" onClick={logoTapHandler} className="w-8 h-8 object-contain rounded cursor-pointer" />
                     <span className="text-sm font-bold text-gray-900 leading-tight text-left">
                         Cornerstone Research and Publication Services
                     </span>

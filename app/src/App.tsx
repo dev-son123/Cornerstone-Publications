@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, Outlet } from 'react-router-
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from '@/components/ui/sonner';
 import LandingPage from '@/pages/LandingPage';
-import AdminDashboard from '@/pages/AdminDashboard';
+import { AdminPortal } from './components/admin/AdminPortal';
 import Journal from '@/pages/Journal';
 import ResearchHub from '@/pages/ResearchHub';
 import PhysicsResources from '@/pages/PhysicsResources';
@@ -13,6 +13,7 @@ import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import { AuthProvider } from '@/context/AuthContext';
 import { IntroSplash } from '@/components/IntroSplash';
 import AuthCallback from '@/pages/AuthCallback';
+import PhDMentorship from '@/pages/PhDMentorship';
 
 const AnimatedLayout = () => {
   const location = useLocation();
@@ -62,11 +63,11 @@ function App() {
                 <Route path="/contact" element={<ContactSupport />} />
                 <Route path="/terms-of-service" element={<TermsOfService />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-
-                {/* Admin route */}
-                <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
+                {/* Admin route */}
+                <Route path="/portal-cRs7x9mK" element={<AdminPortal />} />
               </Route>
+              <Route path="/phd-mentorship" element={<PhDMentorship />} />
             </Routes>
             <Toaster />
           </BrowserRouter>

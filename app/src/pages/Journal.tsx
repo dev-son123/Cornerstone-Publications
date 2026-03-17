@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ImageUploadDemo } from '@/components/ui/demo';
 import { AnimatedMenuLink } from '@/components/ui/menu-hover-effects';
+import { EditorialBoardSection, PastIssuesSection, ManuscriptForm } from '../components/journal/JournalSections';
+import { SampleArticleSection } from '../components/journal/SampleArticleSection';
 import {
     FileText,
     Users,
@@ -93,30 +94,7 @@ const AddPublication = () => (
 export default function Journal() {
     const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
-    const [view, setView] = useState<'home' | 'editorial' | 'issues' | 'article' | 'add' | 'authors' | 'charges' | 'copyright'>('home');
-    const [journalSections, setJournalSections] = useState<Record<string, string>>({});
-    const [, setIsLoadingSections] = useState(true);
-
-    const fetchSections = async () => {
-        setIsLoadingSections(true);
-        try {
-            const { data, error } = await supabase.from('journal_sections').select('*');
-            if (error) throw error;
-            if (data) {
-                const map: Record<string, string> = {};
-                data.forEach((row: any) => map[row.id] = row.content);
-                setJournalSections(map);
-            }
-        } catch (err) {
-            console.error("Error fetching journal sections:", err);
-        } finally {
-            setIsLoadingSections(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchSections();
-    }, []);
+    const [view, setView] = useState<'home' | 'editorial' | 'issues' | 'article' | 'submit' | 'add' | 'authors' | 'charges' | 'copyright'>('home');
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 60);
@@ -237,137 +215,121 @@ export default function Journal() {
 <html>
 <head>
 <meta charset="utf-8">
-<title>Transfer of Copyright Agreement – JCNAP</title>
+<title>Transfer of Copyright Agreement</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Times New Roman", Times, serif;
-    font-size: 12pt;
+    font-size: 13.5pt;
     color: #000;
-    padding: 2.5cm 3cm;
-    line-height: 1.7;
-  }
-  .header {
-    text-align: center;
-    border-bottom: 2px solid #000;
-    padding-bottom: 14pt;
-    margin-bottom: 20pt;
-  }
-  .journal-name {
-    font-size: 14pt;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5pt;
-  }
-  .journal-abbr {
-    font-size: 11pt;
-    color: #333;
-    margin-top: 4pt;
+    padding: 3cm 3.5cm;
+    line-height: 1.8;
   }
   h1 {
-    font-size: 15pt;
+    font-size: 16pt;
     font-weight: bold;
     text-align: center;
-    text-decoration: underline;
-    margin: 20pt 0 18pt;
+    margin-bottom: 24pt;
   }
-  p { margin-bottom: 12pt; text-align: justify; }
-  ol { margin: 0 0 12pt 1.5cm; }
-  ol li { margin-bottom: 6pt; }
-  .cc-box {
-    border: 1px solid #999;
-    padding: 8pt 12pt;
-    margin: 14pt 0;
-    font-size: 11pt;
-    background: #f9f9f9;
-  }
-  .sig-section { margin-top: 28pt; }
+  p { margin-bottom: 16pt; text-align: justify; }
+  .sig-section { margin-top: 40pt; }
   .sig-row {
-    display: flex;
-    align-items: flex-end;
     margin-bottom: 20pt;
-    gap: 10pt;
-  }
-  .sig-label { font-weight: bold; white-space: nowrap; min-width: 220pt; }
-  .sig-line {
-    flex: 1;
-    border-bottom: 1px solid #000;
-    height: 20pt;
-  }
-  .footer {
-    margin-top: 30pt;
-    border-top: 1px solid #999;
-    padding-top: 8pt;
-    font-size: 9pt;
-    color: #555;
-    text-align: center;
   }
   @media print {
-    body { padding: 1.5cm 2cm; }
-    @page { size: A4; margin: 1.5cm; }
+    body { padding: 2cm 2.5cm; }
+    @page { size: A4; margin: 2cm; }
   }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="journal-name">Journal of Clinical Nursing and Allied Health Practice</div>
-  <div class="journal-abbr">(JCNAP) &nbsp;|&nbsp; cornerstoneresearch2022@gmail.com</div>
-</div>
-
-<h1>Transfer of Copyright Agreement</h1>
+<h1>Transfer of copyright agreement</h1>
 
 <p>
-  The article entitled <span style="display:inline-block;border-bottom:1px solid #000;min-width:250pt;">&nbsp;</span>
-  is submitted for publication in the <strong>Journal of Clinical Nursing and Allied Health Practice (JCNAP)</strong>.
-  It has not been published before and is not under review in any other journal.
-  It does not contain anything scandalous, obscene, defamatory, or against the law.
-  I/We agree that any copies made will keep the original copyright notice.
-  I/We confirm that I/We have written permission to use any text, tables, or figures taken from
-  other copyrighted sources, and I/We will provide these permissions to JCNAP if asked.
+  The article entitled ____________________________ is submitted for publication in the Journal of Clinical Nursing and Allied Health Practice (JCNAP). It has not been published before and is not under review in any other journal. It does not contain anything scandalous, obscene, defamatory, or against the law. I/We agree that any copies made will keep the original copyright notice. I/We confirm that I/We have written permission to use any text, tables, or figures taken from other copyrighted sources, and I/We will provide these permissions to JCNAP if asked.
 </p>
 
 <p>
-  If the article is accepted, I/We, the author(s), agree to transfer and assign all copyright
-  ownership, with all related rights, only to the Journal. After publication, the Journal will
-  own the work, including:
+  If the article is accepted, I/We, the author(s), agree to transfer and assign all copyright ownership, with all related rights, only to the Journal. After publication, the Journal will own the work, including: 1) copyright; 2) the right to give permission to republish the article in full or in part, with or without fee; 3) the right to make and distribute preprints or reprints and to translate the article into other languages for sale or free distribution; and 4) the right to republish the work in collections or in any other mechanical or electronic form.[1]
 </p>
 
-<ol>
-  <li>copyright;</li>
-  <li>the right to give permission to republish the article in full or in part, with or without fee;</li>
-  <li>the right to make and distribute preprints or reprints and to translate the article into
-      other languages for sale or free distribution; and</li>
-  <li>the right to republish the work in collections or in any other mechanical or electronic form.</li>
-</ol>
-
-<div class="cc-box">
-  The article will be published under the latest <strong>Creative Commons
-  Attribution-NonCommercial-ShareAlike License</strong>, unless the Journal informs the
-  author(s) otherwise in writing.
-</div>
+<p>
+  The article will be published under the latest Creative Commons Attribution-NonCommercial-ShareAlike License, unless the Journal informs the author(s) otherwise in writing.[1]
+</p>
 
 <div class="sig-section">
-  <div class="sig-row">
-    <span class="sig-label">Signature of author(s):</span>
-    <span class="sig-line"></span>
-  </div>
-  <div class="sig-row">
-    <span class="sig-label">Name(s) and designation:</span>
-    <span class="sig-line"></span>
-  </div>
-  <div class="sig-row">
-    <span class="sig-label">Name of Institution / Organization:</span>
-    <span class="sig-line"></span>
-  </div>
-  <div class="sig-row">
-    <span class="sig-label">Date:</span>
-    <span class="sig-line"></span>
-  </div>
+  <div class="sig-row">Signature of author(s): ____________________________</div>
+  <div class="sig-row">Name(s) and designation: __________________________</div>
+  <div class="sig-row">Name of Institution/Organization: _________________</div>
 </div>
 
-<div class="footer">
-  JCNAP &nbsp;&bull;&nbsp; Cornerstone Research &nbsp;&bull;&nbsp; cornerstoneresearch2022@gmail.com
+<script>window.onload = function(){ window.print(); }<\/script>
+</body></html>`;
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, '_blank');
+        if (win) win.focus();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+    };
+
+    // ── Download Conflict of Interest as PDF ────────────────────
+    // @ts-ignore
+    const downloadConflictOfInterestPDF = () => {
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Certificate of Conflict of Interest</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 14pt;
+    color: #000;
+    padding: 3cm 3.5cm;
+    line-height: 1.8;
+  }
+  h1 {
+    font-size: 16pt;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 24pt;
+    text-decoration: underline;
+  }
+  p { margin-bottom: 16pt; text-align: justify; }
+  .sig-section { margin-top: 40pt; }
+  .sig-row {
+    margin-bottom: 15pt;
+  }
+  @media print {
+    body { padding: 2cm 2.5cm; }
+    @page { size: A4; margin: 2cm; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Certificate of Conflict of Interest</h1>
+
+<p>
+  The article entitled _________________________________________________________________<br/>
+  ________________________________________________________ is herewith submitted for<br/>
+  publication in _________________________________________________ (Name of Journal).<br/>
+  It has not been published before, and it is not under consideration for publication in any other<br/>
+  journal (s).
+</p>
+
+<p>
+  I/We certify that I/We have obtained written permission for the use of text, tables, and/or
+  illustrations from any copyrighted source(s), and I/We declare no conflict of interest.
+</p>
+
+<div class="sig-section">
+  <div class="sig-row">Signature of author(s): _____________________________________________</div>
+  <div class="sig-row">Name(s) and designation: ___________________________________________</div>
+  <div class="sig-row">Name(s) of Institution/Organization: _________________________________</div>
 </div>
 
 <script>window.onload = function(){ window.print(); }<\/script>
@@ -427,7 +389,7 @@ export default function Journal() {
                             <Button variant="ghost" onClick={() => navigate('/')} className="flex items-center gap-1 transition-all duration-200 hover:text-[#d63384]">
                                 <ArrowLeft className="w-4 h-4" /> Home
                             </Button>
-                            <Button onClick={() => navigate('/contact')} className="bg-[#d63384] hover:bg-[#b5165a] transition-all duration-200 hover:shadow-lg hover:shadow-[#d63384]/30">
+                            <Button onClick={() => setView('submit')} className="bg-[#d63384] hover:bg-[#b5165a] transition-all duration-200 hover:shadow-lg hover:shadow-[#d63384]/30">
                                 Submit Manuscript
                             </Button>
                         </div>
@@ -469,11 +431,11 @@ export default function Journal() {
                 <aside className="w-full lg:w-[290px] flex-shrink-0 border-r border-gray-200 bg-white shadow-md">
                     <div className="flex flex-col pt-4 pb-8 pr-0">
                         {[
-                            { title: "SUBMIT ARTICLE", icon: MapPin, route: '/contact', view: null },
+                            { title: "SUBMIT ARTICLE", icon: MapPin, route: null, view: 'submit' },
                             { title: "AUTHOR'S GUIDELINES", icon: Users, route: null, view: 'authors' },
                             { title: "PAPER TEMPLATE", icon: FileText, route: null, view: null, action: 'download' },
                             { title: "COPYRIGHT FORM", icon: Copy, route: null, view: null, action: 'copyright-pdf' },
-                            { title: "CERT. OF CONFLICT OF INTREST", icon: FileText, route: '#', view: null },
+                            { title: "CERT. OF CONFLICT OF INTREST", icon: FileText, route: null, view: null, action: 'conflict-pdf' },
                             { title: "PROCESSING CHARGES", icon: IndianRupee, route: null, view: 'charges' },
                             { title: "INDEXING INFORMATION", icon: Database, route: '#', view: null },
                         ].map((item, index) => (
@@ -481,6 +443,8 @@ export default function Journal() {
                                 key={index}
                                 onClick={() => {
                                     if (item.action === 'download') { downloadPaperTemplate(); return; }
+                                    if (item.action === 'copyright-pdf') { downloadCopyrightPDF(); return; }
+                                    if (item.action === 'conflict-pdf') { downloadConflictOfInterestPDF(); return; }
                                     if (item.view) setView(item.view as typeof view);
                                     else if (item.route && item.route !== '#') navigate(item.route);
                                 }}
@@ -499,60 +463,21 @@ export default function Journal() {
                     {view === 'editorial' && (
                         <div className="max-w-5xl mx-auto py-12">
                             <h2 className="text-4xl font-extrabold text-[#0b1120] mb-8 border-b-4 border-[#d63384] inline-block pb-2">Editorial Board</h2>
-                            <div className="bg-white p-10 rounded-3xl shadow-xl border border-gray-100 leading-relaxed text-gray-700 whitespace-pre-wrap">
-                                {journalSections.editorial || "Loading editorial board information..."}
-                            </div>
+                            <EditorialBoardSection />
                         </div>
                     )}
 
                     {view === 'issues' && (
                         <div className="max-w-5xl mx-auto py-12">
                             <h2 className="text-4xl font-extrabold text-[#0b1120] mb-8 border-b-4 border-[#d63384] inline-block pb-2">Past Issues</h2>
-                            <div className="bg-white p-10 rounded-3xl shadow-xl border border-gray-100 text-center">
-                                <FileText className="w-20 h-20 text-[#d63384]/20 mx-auto mb-6" />
-                                <p className="text-xl text-gray-600 mb-8">{journalSections.past_issues || "Archived issues are being updated."}</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {/* Placeholder for actual issues if we had a table for them */}
-                                    {[2024, 2023, 2022].map(year => (
-                                        <div key={year} className="p-6 border border-gray-100 rounded-2xl bg-gray-50/50 hover:bg-white hover:shadow-lg transition-all cursor-pointer group">
-                                            <span className="text-2xl font-bold text-gray-400 group-hover:text-[#d63384] transition-colors">{year} Collection</span>
-                                            <p className="text-sm text-gray-500 mt-2">Volume {year - 2021}, Issue 1-4</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <PastIssuesSection />
                         </div>
                     )}
 
                     {view === 'article' && (
                         <div className="max-w-4xl mx-auto py-12">
                             <h2 className="text-4xl font-extrabold text-[#0b1120] mb-8 border-b-4 border-pink-400 inline-block pb-2">Featured Sample Article</h2>
-                            {journalSections.sample_article ? (
-                                (() => {
-                                    try {
-                                        const article = JSON.parse(journalSections.sample_article);
-                                        return (
-                                            <div className="bg-white p-10 rounded-3xl shadow-xl border border-gray-100">
-                                                <h3 className="text-3xl font-bold text-gray-900 mb-4">{article.title}</h3>
-                                                <div className="flex flex-wrap gap-4 mb-8 text-sm text-gray-500">
-                                                    <span className="flex items-center gap-1 font-bold text-gray-700"><Users className="w-4 h-4" /> {article.author}</span>
-                                                    <span>•</span>
-                                                    <span>Open Access</span>
-                                                </div>
-                                                <div className="prose prose-pink max-w-none">
-                                                    <h4 className="text-xl font-bold text-gray-900 mb-4">Abstract</h4>
-                                                    <p className="text-gray-700 leading-relaxed italic border-l-4 border-gray-200 pl-6 mb-8">{article.abstract}</p>
-                                                    <Button className="bg-[#d63384] hover:bg-pink-600 text-white rounded-full px-8 py-6 text-lg font-bold">Read Full Article (PDF)</Button>
-                                                </div>
-                                            </div>
-                                        );
-                                    } catch (e) {
-                                        return <p className="text-red-500 italic">Invalid article metadata format stored in database.</p>;
-                                    }
-                                })()
-                            ) : (
-                                <p className="text-gray-500 italic">No sample article currently featured.</p>
-                            )}
+                            <SampleArticleSection />
                         </div>
                     )}
 
@@ -614,7 +539,7 @@ export default function Journal() {
                                     </CardHeader>
                                     <CardContent className="space-y-4 text-gray-800">
                                         <p className="leading-relaxed text-base">
-                                            All manuscripts must be submitted on-line through the online submission portal <button onClick={() => navigate('/contact')} className="text-pink-600 underline font-semibold">(Submit Here)</button>.
+                                            All manuscripts must be submitted on-line through the online submission portal <button onClick={() => setView('submit')} className="text-pink-600 underline font-semibold cursor-pointer">(Submit Here)</button>.
                                             If you experience any problems, please contact the editorial office by e-mail at <a href="mailto:cornerstoneresearch2022@gmail.com" className="text-pink-600 underline">cornerstoneresearch2022@gmail.com</a>.
                                         </p>
                                         <p className="leading-relaxed text-base text-red-600 font-medium">
@@ -624,7 +549,7 @@ export default function Journal() {
                                             NOTE:- Before submitting your manuscript, please read the Author's Guidelines <button onClick={() => navigate('#')} className="text-pink-600 underline">(Click to read &gt;&gt;&gt;)</button>.
                                         </p>
                                         <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                                            <Button size="lg" onClick={() => navigate('/contact')} className="bg-[#d63384] hover:bg-[#b5165a] text-white">Contact to Submit Article</Button>
+                                            <Button size="lg" onClick={() => setView('submit')} className="bg-[#d63384] hover:bg-[#b5165a] text-white">Submit Article Now</Button>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -801,7 +726,7 @@ export default function Journal() {
 
                                         <div className="text-center">
                                             <Button
-                                                onClick={() => navigate('/contact')}
+                                                onClick={() => setView('submit')}
                                                 size="lg"
                                                 className="bg-gradient-to-r from-[#d63384] to-[#b5165a] hover:from-[#b5165a] hover:to-[#d63384] text-lg px-8 py-6 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                                             >
@@ -920,26 +845,26 @@ export default function Journal() {
                                                     logoBg: '#e11d48'
                                                 },
                                             ].map((db, i) => (
-                                            <div
-                                                key={i}
-                                                className={`flex items-center gap-4 px-6 py-5 border-b border-r border-gray-200 last:border-b-0 hover:bg-pink-50 transition-colors duration-200 cursor-default ${db.bg}`}
-                                            >
-                                                {db.logo ? (
-                                                    <div
-                                                        className="w-11 h-11 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0"
-                                                        style={{ background: db.logoBg }}
-                                                    >
-                                                        {db.logo}
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-11 h-11 rounded-full border-2 border-gray-200 flex items-center justify-center flex-shrink-0 bg-gray-50">
-                                                        <Database className="w-5 h-5 text-gray-400" />
-                                                    </div>
-                                                )}
-                                                <span className="text-[15px] font-bold text-gray-800 uppercase tracking-wide">
-                                                    {db.name}
-                                                </span>
-                                            </div>
+                                                <div
+                                                    key={i}
+                                                    className={`flex items-center gap-4 px-6 py-5 border-b border-r border-gray-200 last:border-b-0 hover:bg-pink-50 transition-colors duration-200 cursor-default ${db.bg}`}
+                                                >
+                                                    {db.logo ? (
+                                                        <div
+                                                            className="w-11 h-11 rounded-full flex items-center justify-center text-white text-lg flex-shrink-0"
+                                                            style={{ background: db.logoBg }}
+                                                        >
+                                                            {db.logo}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-11 h-11 rounded-full border-2 border-gray-200 flex items-center justify-center flex-shrink-0 bg-gray-50">
+                                                            <Database className="w-5 h-5 text-gray-400" />
+                                                        </div>
+                                                    )}
+                                                    <span className="text-[15px] font-bold text-gray-800 uppercase tracking-wide">
+                                                        {db.name}
+                                                    </span>
+                                                </div>
                                             ))}
                                         </div>
                                     </CardContent>
@@ -963,6 +888,7 @@ export default function Journal() {
                     )}
 
                     {view === 'article' && <ArticlePage />}
+                    {view === 'submit' && <ManuscriptForm />}
                     {view === 'add' && <AddPublication />}
 
                     {view === 'authors' && (
