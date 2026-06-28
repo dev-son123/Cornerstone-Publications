@@ -108,21 +108,19 @@ export function AnimatedMenuLink({
                 {children || text}
             </span>
             {/* Top & bottom border animation */}
-            <span className="
+            <span className={`
         absolute inset-0 border-t-2 border-b-2 border-[#b5165a]
-        transform scale-y-[2] opacity-0
-        transition-all duration-300 origin-center
-        group-hover:scale-y-100 group-hover:opacity-100
+        transform transition-all duration-300 origin-center
         pointer-events-none rounded-sm
-      " />
+        ${active ? 'scale-y-100 opacity-100' : 'scale-y-[2] opacity-0 group-hover:scale-y-100 group-hover:opacity-100'}
+      `} />
             {/* Background fill animation */}
-            <span className="
+            <span className={`
         absolute top-[2px] left-0 w-full h-[calc(100%-4px)] bg-[#b5165a]
-        transform scale-0 opacity-0
-        transition-all duration-300 origin-top
-        group-hover:scale-100 group-hover:opacity-100
+        transform transition-all duration-300 origin-top
         pointer-events-none rounded-sm
-      " />
+        ${active ? 'scale-100 opacity-100' : 'scale-0 opacity-0 group-hover:scale-100 group-hover:opacity-100'}
+      `} />
         </button>
     );
 }

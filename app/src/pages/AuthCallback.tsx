@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
@@ -7,30 +7,45 @@ import { Loader2 } from 'lucide-react';
  * AuthCallback
  *
  * Supabase redirects here after Google (or any OAuth) login.
- * The URL contains a `code` query param; Supabase exchanges it for a
- * session automatically via `onAuthStateChange`.
- * We just wait for the session, then forward the user to /dashboard.
+ * The URL hash contains access_token, refresh_token etc.
+ * Supabase JS client auto-detects hash tokens and establishes a session.
+ * We listen for auth state changes and redirect once signed in.
  */
 export default function AuthCallback() {
     const navigate = useNavigate();
+    const handled = useRef(false);
 
     useEffect(() => {
-        // Supabase handles the code exchange when the client is initialised.
-        // We listen once for the resulting SIGNED_IN event, then redirect.
-        const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-            if (event === 'SIGNED_IN') {
-                listener.subscription.unsubscribe();
-                navigate('/admin/dashboard', { replace: true });
+        // Listen for the auth state change triggered by hash token processing
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            // Supabase fires SIGNED_IN or INITIAL_SESSION when it processes hash tokens
+            if (session && !handled.current) {
+                handled.current = true;
+                // Clear the hash from the URL
+                window.history.replaceState(null, '', window.location.pathname);
+                sessionStorage.setItem('adminPortalSession', 'true');
+                const adminPath = import.meta.env.VITE_ADMIN_PORTAL_PATH || '/portal-cRs7x9mK';
+                navigate(adminPath, { replace: true, state: { fromAuth: true } });
             }
         });
 
-        // Safety net: if already signed in (e.g. token in hash), redirect immediately.
-        supabase.auth.getSession().then(({ data }) => {
-            if (data.session) {
-                listener.subscription.unsubscribe();
-                navigate('/admin/dashboard', { replace: true });
+        // Fallback: if Supabase already processed the hash before our listener attached
+        const fallbackCheck = async () => {
+            // Small delay to let Supabase process the hash fragment
+            await new Promise(r => setTimeout(r, 1000));
+            
+            if (handled.current) return;
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session && !handled.current) {
+                handled.current = true;
+                window.history.replaceState(null, '', window.location.pathname);
+                sessionStorage.setItem('adminPortalSession', 'true');
+                navigate('/portal-cRs7x9mK', { replace: true, state: { fromAuth: true } });
             }
-        });
+        };
+
+        fallbackCheck();
 
         return () => {
             listener.subscription.unsubscribe();

@@ -154,12 +154,13 @@ export interface AuthComponentProps {
     onGoogle?: () => void;
     onGithub?: () => void;
     onEmailSubmit?: (email: string, pass: string) => Promise<void>;
+    onForgotPassword?: (email: string) => Promise<void>;
     isLogin?: boolean;
     onToggleMode?: () => void;
 }
 
 export function AuthComponent({
-    logo = <DefaultLogo />, brandName = "Cornerstone", onSuccess, onGoogle, onEmailSubmit, isLogin = true, onToggleMode
+    logo = <DefaultLogo />, brandName = "Cornerstone", onSuccess, onGoogle, onEmailSubmit, onForgotPassword, isLogin = true, onToggleMode
 }: AuthComponentProps) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -201,13 +202,19 @@ export function AuthComponent({
 
         if (isForgotPassword) {
             setModalStatus('loading');
-            setTimeout(() => {
+            try {
+                if (onForgotPassword) {
+                    await onForgotPassword(email);
+                }
                 setModalStatus('success');
                 setTimeout(() => {
                     setModalStatus('closed');
                     setIsForgotPassword(false);
                 }, 1500);
-            }, 1000);
+            } catch (err: any) {
+                setModalErrorMessage(err.message || "Failed to send reset email");
+                setModalStatus('error');
+            }
             return;
         }
 

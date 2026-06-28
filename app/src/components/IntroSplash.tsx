@@ -1,26 +1,33 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface IntroSplashProps {
-    onComplete: () => void;
-}
-
-export function IntroSplash({ onComplete }: IntroSplashProps) {
+export function IntroSplash() {
     const [phase, setPhase] = useState<'logo' | 'text' | 'exit'>('logo');
+    const [isVisible, setIsVisible] = useState(true);
+
+    const onComplete = () => setIsVisible(false);
 
     useEffect(() => {
+        document.body.style.overflow = 'hidden';
+
         // Phase 1: Show just a circle logo
         const t1 = setTimeout(() => setPhase('text'), 1000);
         // Phase 2: Show text below
         const t2 = setTimeout(() => setPhase('exit'), 2800);
-        // Phase 3: Begin exit → logo flies to navbar
-        const t3 = setTimeout(() => onComplete(), 3700);
+        // Phase 3: Begin exit
+        const t3 = setTimeout(() => {
+            document.body.style.overflow = 'unset';
+            onComplete();
+        }, 3700);
 
         // Also exit on first scroll
         const handleScroll = () => {
             if (window.scrollY > 5) {
                 setPhase('exit');
-                setTimeout(() => onComplete(), 700);
+                setTimeout(() => {
+                    document.body.style.overflow = 'unset';
+                    onComplete();
+                }, 700);
             }
         };
         window.addEventListener('scroll', handleScroll, { passive: true });
@@ -30,10 +37,13 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
             clearTimeout(t2);
             clearTimeout(t3);
             window.removeEventListener('scroll', handleScroll);
+            document.body.style.overflow = 'unset';
         };
-    }, [onComplete]);
+    }, []);
 
     const isExiting = phase === 'exit';
+
+    if (!isVisible) return null;
 
     return (
         <AnimatePresence>
@@ -68,8 +78,8 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
                     >
-                        <div className="w-44 h-44 rounded-full overflow-hidden ring-4 ring-[#d63384]/25 ring-offset-4 shadow-2xl">
-                            <img src="/logo.jpeg" alt="Cornerstone" className="w-full h-full object-cover" />
+                        <div className="w-44 h-44 rounded-full overflow-hidden ring-4 ring-[#d63384]/25 ring-offset-4 shadow-2xl bg-white flex items-center justify-center">
+                            <img src="/logo.jpeg" alt="Cornerstone" className="w-[110%] h-[110%] object-cover object-center" />
                         </div>
                     </motion.div>
 
@@ -96,7 +106,7 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.4, duration: 0.6 }}
                                 >
-                                    🌸 Guiding Scholars from Draft to Discovery
+                                    Guiding Scholars from Draft to Discovery
                                 </motion.p>
                             </motion.div>
                         )}
@@ -106,15 +116,15 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
                     <AnimatePresence>
                         {phase === 'text' && (
                             <motion.div
-                                className="absolute bottom-12 flex flex-col items-center gap-2 text-gray-300"
+                                className="absolute bottom-12 flex flex-col items-center gap-2 text-gray-400"
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ delay: 0.8, duration: 0.5 }}
                             >
-                                <span className="text-xs tracking-widest uppercase font-medium">Scroll to explore</span>
+                                <span className="text-xs tracking-widest uppercase font-medium">Please wait...</span>
                                 <motion.div
-                                    className="w-5 h-8 rounded-full border-2 border-gray-200 flex items-start justify-center pt-1.5"
+                                    className="w-5 h-8 rounded-full border-2 border-pink-200 flex items-start justify-center pt-1.5"
                                     animate={{ opacity: [0.5, 1, 0.5] }}
                                     transition={{ duration: 1.5, repeat: Infinity }}
                                 >

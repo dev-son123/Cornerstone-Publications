@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Menu, X, Home, BookOpen, Microscope, Mail, FlaskConical } from 'lucide-react';
-import { useAdminTrigger } from '@/pages/AdminDashboard';
+import { useAdminTrigger } from '@/components/admin/AdminDashboard';
+import { supabase, isSupabaseReady } from '@/lib/supabase';
 
-export const navItems = [
+export const navItems: { label: string; href: string; icon: any; external?: boolean }[] = [
     { label: 'Home', href: '/', icon: Home },
     { label: 'Journals', href: '/journal', icon: BookOpen, external: true },
     { label: 'Research Hub', href: '/research-hub', icon: FlaskConical },
-    { label: 'Physics', href: '/physics-resources', icon: Microscope },
+    { label: 'Physics Class Resources', href: '/physics-resources', icon: Microscope },
     { label: 'Contact', href: '/contact', icon: Mail },
 ];
 
@@ -18,6 +19,31 @@ export function AdvancedNav() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { logoTapHandler } = useAdminTrigger();
+    const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        if (!isSupabaseReady) {
+            setDbConnected(false);
+            return;
+        }
+        // Query a public table to force a network request and verify DB connection is live (not paused)
+        supabase.from('articles').select('id').limit(1)
+            .then(({ error }) => {
+                if (error && (
+                    error.message.includes('fetch') || 
+                    error.message.includes('Network') || 
+                    error.message.includes('resolve') ||
+                    error.message.includes('Failed to fetch')
+                )) {
+                    setDbConnected(false);
+                } else {
+                    setDbConnected(true);
+                }
+            })
+            .catch(() => {
+                setDbConnected(false);
+            });
+    }, []);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -99,9 +125,26 @@ export function AdvancedNav() {
                 </div>
 
                 {/* Action Area */}
-                <div className={`flex items-center transition-all duration-500 flex-shrink-0 ${isScrolled ? 'mt-auto flex-col space-y-4 w-full' : 'space-x-2'}`}>
+                <div className={`flex items-center transition-all duration-500 flex-shrink-0 ${isScrolled ? 'mt-auto flex-col space-y-4 w-full' : 'space-x-4'}`}>
+                    {/* Connection Status Dot */}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-full border border-gray-200/50 shadow-sm" title={dbConnected === true ? 'Connected to database' : dbConnected === false ? 'Running in offline/demo mode' : 'Checking database connection...'}>
+                        <span className={`w-2 h-2 rounded-full ${
+                            dbConnected === true ? 'bg-green-500 animate-pulse' :
+                            dbConnected === false ? 'bg-red-500' : 'bg-amber-400'
+                        }`} />
+                        <span className={`text-[9px] font-extrabold text-gray-500 uppercase tracking-widest transition-all duration-500 ${isScrolled ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100 block'}`}>
+                            {dbConnected === true ? 'Live' : dbConnected === false ? 'Offline' : 'Checking'}
+                        </span>
+                    </div>
+
                     <div className={`flex items-center justify-center transition-all duration-500 overflow-hidden ${isScrolled ? 'w-0 h-0 opacity-0 hidden' : 'opacity-100 space-x-2'}`}>
-                        <Button onClick={() => navigate('/contact')} className="bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white hover:opacity-90 border-0 text-sm whitespace-nowrap">Get Started</Button>
+                        <Button onClick={() => {
+                            if (location.pathname === '/') {
+                                document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+                            } else {
+                                navigate('/#services');
+                            }
+                        }} className="bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white hover:opacity-90 border-0 text-sm whitespace-nowrap">Get Started</Button>
                     </div>
                 </div>
             </nav>
@@ -138,7 +181,23 @@ export function AdvancedNav() {
                             )
                         })}
                         <div className="pt-4 flex flex-col space-y-2 border-t border-gray-100 mt-2">
-                            <Button onClick={() => { setMobileMenuOpen(false); navigate('/contact'); }} className="w-full bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white">Get Started</Button>
+                            <div className="flex items-center justify-center gap-1.5 py-1.5">
+                                <span className={`w-2.5 h-2.5 rounded-full ${
+                                    dbConnected === true ? 'bg-green-500 animate-pulse' :
+                                    dbConnected === false ? 'bg-red-500' : 'bg-amber-400'
+                                }`} />
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                    Database: {dbConnected === true ? 'Online' : dbConnected === false ? 'Offline / Demo' : 'Checking'}
+                                </span>
+                            </div>
+                            <Button onClick={() => {
+                                setMobileMenuOpen(false);
+                                if (location.pathname === '/') {
+                                    document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+                                } else {
+                                    navigate('/#services');
+                                }
+                            }} className="w-full bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white">Get Started</Button>
                         </div>
                     </div>
                 )}

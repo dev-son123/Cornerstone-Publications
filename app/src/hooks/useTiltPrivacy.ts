@@ -21,7 +21,7 @@ export function useTiltPrivacy(options: TiltPrivacyOptions = {}): TiltPrivacyRes
     useEffect(() => {
         // Check if the DeviceOrientationEvent requires permission (iOS 13+)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        if (typeof window !== 'undefined' && typeof (window as any).DeviceOrientationEvent !== 'undefined' && typeof (window as any).DeviceOrientationEvent.requestPermission === 'function') {
             setNeedsPermission(true);
         } else {
             // For non-iOS devices, permission is generally assumed or not explicitly requestable this way
@@ -61,7 +61,7 @@ export function useTiltPrivacy(options: TiltPrivacyOptions = {}): TiltPrivacyRes
 
     const requestPermission = async (): Promise<boolean> => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if (typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+        if (typeof window !== 'undefined' && typeof (window as any).DeviceOrientationEvent !== 'undefined' && typeof (window as any).DeviceOrientationEvent.requestPermission === 'function') {
             try {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const permissionState = await (DeviceOrientationEvent as any).requestPermission();

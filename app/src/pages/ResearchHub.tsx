@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import { useMeta } from '@/hooks/useMeta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, BookOpen, FileText, Monitor, Database, Video, CheckCircle } from 'lucide-react';
-import { AnimatedMenuLink } from '@/components/ui/menu-hover-effects';
+import { Search, BookOpen, FileText, Monitor, Database, Video, CheckCircle, Download } from 'lucide-react';
+import { AdvancedNav } from '../components/ui/advanced-nav';
+import { Footer } from '../components/Footer';
+import { motion } from 'framer-motion';
 
 const modules = [
     {
@@ -44,122 +47,130 @@ const modules = [
 
 export default function ResearchHub() {
     const navigate = useNavigate();
+    useMeta({ title: 'Research Hub – Training & Writing Resources', description: 'Download academic writing modules, manuscript templates, and get 1-on-1 training via Google Meet with our expert researchers.' });
+
+    const fadeInUp = {
+        hidden: { opacity: 0, y: 25 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+    };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
-            {/* Header */}
-            <header className="bg-white/90 backdrop-blur-md border-b border-pink-100 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        {/* Logo — extreme left */}
-                        <button onClick={() => navigate('/')} className="flex items-center gap-3">
-                            <img src="/logo.jpeg" alt="Cornerstone" className="w-10 h-10 object-contain rounded flex-shrink-0" />
-                            <span className="text-sm font-bold text-gray-900 leading-tight text-left hidden sm:block">
-                                Cornerstone Research<br />
-                                <span className="text-xs font-semibold text-[#FFB7C5]">Service and Publications</span>
-                            </span>
-                        </button>
-                        <div className="flex items-center space-x-3">
-                            <AnimatedMenuLink onClick={() => navigate(-1 as never)} text="← Back" />
-                            <span className="text-lg font-bold text-gray-900 hidden md:block">Research Training Hub</span>
-                            <Button onClick={() => navigate('/contact')} className="bg-gradient-to-r from-[#FFB7C5] to-[#ff8fab] text-white hover:opacity-90 border-0">
-                                Get Started
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+        <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex flex-col relative overflow-hidden">
+            {/* Floating background blur elements */}
+            <div className="absolute top-20 left-10 w-72 h-72 bg-pink-200/35 rounded-full blur-3xl opacity-50 pointer-events-none animate-pulse" />
+            <div className="absolute bottom-10 right-10 w-96 h-96 bg-rose-200/25 rounded-full blur-3xl opacity-50 pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <AdvancedNav />
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 flex-1 relative z-10">
                 {/* Hero */}
-                <div className="text-center mb-16">
-                    <div className="inline-flex items-center px-4 py-2 bg-pink-100 rounded-full mb-6">
-                        <BookOpen className="w-4 h-4 text-[#FFB7C5] mr-2" />
-                        <span className="text-sm font-medium text-pink-700">Structured Learning Resources</span>
+                <motion.div initial="hidden" animate="visible" variants={fadeInUp} className="text-center mb-16">
+                    <div className="inline-flex items-center px-5 py-2.5 bg-white/60 backdrop-blur-md rounded-full mb-8 shadow-[0_0_25px_rgba(214,51,132,0.12)] border border-white/60">
+                        <BookOpen className="w-5 h-5 text-[#d63384] mr-2" />
+                        <span className="text-xs font-black tracking-widest text-[#d63384] uppercase">Structured Learning Resources</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                    <h1 className="text-5xl sm:text-6xl font-black text-gray-900 leading-[1.1] mb-6 tracking-tighter">
                         Empowering Research Through{' '}
-                        <span className="bg-gradient-to-r from-[#FFB7C5] to-[#ff8fab] bg-clip-text text-transparent">
-                            Structured Learning
+                        <span className="relative inline-block">
+                            <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-[#d63384] via-[#ff8fab] to-[#d63384]">
+                                Structured Learning
+                            </span>
+                            <div className="absolute -bottom-2 left-0 w-full h-3 bg-[#d63384]/15 blur-md rounded-full"></div>
                         </span>
                     </h1>
-                    <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+                    <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed font-semibold mb-8">
                         Our Research Training Hub offers downloadable modules designed to build essential skills in academic writing,
                         research methodology, and scientific publishing. Each module combines step-by-step guidance, practice
                         materials, and templates to help researchers and students gain confidence in executing high-quality projects.
                     </p>
-                    <div className="mt-8 p-5 bg-pink-50 border border-pink-200 rounded-xl inline-block text-left max-w-lg">
-                        <p className="font-semibold text-gray-900 mb-2">📥 How to Access</p>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                            Click <strong>Get Started</strong> next to any module below to connect with our team.
-                            Materials are updated regularly to include new examples and tools used in current academic publishing.
-                        </p>
+                    <div className="relative group inline-block text-left max-w-lg">
+                        <div className="absolute inset-0 bg-gradient-to-r from-[#d63384] to-[#ff8fab] rounded-2xl blur-xl opacity-10 group-hover:opacity-20 transition-opacity duration-500"></div>
+                        <div className="relative bg-white/70 backdrop-blur-md border border-white p-5 rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_45px_rgba(0,0,0,0.06)] transition-all duration-300 text-left">
+                            <p className="font-extrabold text-gray-900 mb-1.5 flex items-center gap-2">
+                                <span className="bg-pink-100 p-1.5 rounded-lg text-[#d63384]"><Download className="w-4 h-4" /></span>
+                                📥 How to Access
+                            </p>
+                            <p className="text-gray-600 text-sm leading-relaxed font-medium">
+                                Click <strong>Get Started</strong> next to any module below to connect with our team.
+                                Materials are updated regularly to include new examples and tools used in current academic publishing.
+                            </p>
+                        </div>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Benefits bar */}
-                <div className="grid grid-cols-3 gap-6 mb-16">
+                <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
                     {[
                         { icon: CheckCircle, text: 'Instant access upon request' },
                         { icon: CheckCircle, text: 'Updated each academic year' },
                         { icon: CheckCircle, text: 'Beginner to advanced levels' },
                     ].map((item, i) => (
-                        <div key={i} className="flex items-center space-x-3 bg-white rounded-xl p-4 shadow-sm border border-pink-100">
-                            <item.icon className="w-5 h-5 text-[#FFB7C5] flex-shrink-0" />
-                            <span className="text-sm text-gray-700 font-medium">{item.text}</span>
+                        <div key={i} className="flex items-center space-x-3 bg-white/70 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] border border-white/80 hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300">
+                            <item.icon className="w-5 h-5 text-[#d63384] flex-shrink-0" />
+                            <span className="text-sm text-gray-700 font-bold">{item.text}</span>
                         </div>
                     ))}
-                </div>
+                </motion.div>
 
                 {/* Modules */}
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-8">Available Modules</h2>
-                    <div className="space-y-5">
+                <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
+                    <h2 className="text-3xl font-black text-gray-900 mb-8 tracking-tight">Available Modules</h2>
+                    <div className="space-y-6">
                         {modules.map((mod, index) => (
-                            <Card key={mod.id} className="border border-pink-100 hover:border-[#FFB7C5] hover:shadow-lg transition-all duration-300 overflow-hidden">
-                                <CardContent className="p-0">
-                                    <div className="flex items-center p-6 gap-6">
-                                        {/* Number */}
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FFB7C5] to-[#ff8fab] flex items-center justify-center flex-shrink-0 text-white font-bold text-lg">
-                                            {index + 1}
-                                        </div>
-                                        {/* Icon */}
-                                        <div className="w-10 h-10 bg-pink-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <mod.icon className="w-5 h-5 text-[#FFB7C5]" />
-                                        </div>
-                                        {/* Content */}
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-lg font-semibold text-gray-900">
-                                                {mod.title}
-                                                {mod.subtitle && <span className="text-gray-500 font-normal text-base"> {mod.subtitle}</span>}
-                                            </h3>
-                                            <p className="text-gray-600 text-sm mt-1 leading-relaxed">{mod.description}</p>
+                            <motion.div 
+                                key={mod.id} 
+                                whileHover={{ y: -5, scale: 1.01 }} 
+                                whileTap={{ scale: 0.995 }} 
+                                transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                            >
+                                <Card className="border border-white/60 bg-white/80 backdrop-blur-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.06)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)] transition-all duration-500 rounded-[2.2rem] overflow-hidden">
+                                    <CardContent className="p-8">
+                                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                            <div className="flex flex-col sm:flex-row items-start gap-4 flex-1">
+                                                <div className="flex items-center gap-4 flex-shrink-0">
+                                                    {/* Number */}
+                                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#d63384] to-[#b5165a] flex items-center justify-center text-white font-black text-lg shadow-md shadow-pink-500/20">
+                                                        {index + 1}
+                                                    </div>
+                                                    {/* Icon */}
+                                                    <div className="w-11 h-11 bg-pink-50 border border-pink-100 rounded-xl flex items-center justify-center">
+                                                        <mod.icon className="w-5 h-5 text-[#d63384]" />
+                                                    </div>
+                                                </div>
+                                                {/* Content */}
+                                                <div className="min-w-0 flex-1">
+                                                    <h3 className="text-xl font-bold text-gray-900 tracking-tight flex flex-wrap items-center gap-2">
+                                                        {mod.title}
+                                                        {mod.subtitle && (
+                                                            <span className="text-gray-500 font-bold text-sm bg-gray-100 px-2.5 py-0.5 rounded-md">
+                                                                {mod.subtitle}
+                                                            </span>
+                                                        )}
+                                                    </h3>
+                                                    <p className="text-gray-600 text-sm mt-2 leading-relaxed font-semibold">{mod.description}</p>
+                                                </div>
+                                            </div>
                                             {/* CTA */}
-                                            <div className="flex flex-col items-end gap-3 flex-shrink-0">
+                                            <div className="flex-shrink-0 w-full lg:w-auto">
                                                 <Button
                                                     onClick={() => navigate('/contact')}
-                                                    className="bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white hover:opacity-90 border-0 flex items-center gap-2 px-6"
+                                                    className="w-full lg:w-auto bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white hover:opacity-95 border-0 flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl shadow-lg shadow-pink-200 font-extrabold"
                                                 >
                                                     <Search className="w-4 h-4" />
                                                     Get Started
                                                 </Button>
                                             </div>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
                         ))}
                     </div>
-                </div>
+                </motion.div>
 
             </main>
 
-            {/* Footer */}
-            <footer className="bg-gray-900 text-white py-8 mt-16">
-                <div className="max-w-7xl mx-auto px-4 text-center">
-                    <p className="text-gray-400 text-sm">© 2024 Cornerstone Research Service and Publications. All rights reserved.</p>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 }

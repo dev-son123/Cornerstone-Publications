@@ -1,9 +1,14 @@
-import { useNavigate } from 'react-router-dom';
+
+import { useMeta } from '@/hooks/useMeta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Search, BookOpen, FileText, CheckCircle } from 'lucide-react';
-import { AnimatedMenuLink } from '@/components/ui/menu-hover-effects';
+import { Search, BookOpen, FileText, CheckCircle, Download } from 'lucide-react';
+import { AdvancedNav } from '../components/ui/advanced-nav';
+import { Footer } from '../components/Footer';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
+// ── Resources data ────────────────────────────────────────────────────────────
 const resources = [
     {
         id: 1,
@@ -16,6 +21,7 @@ const resources = [
         color: 'from-[#d63384] to-[#b5165a]',
         light: 'bg-pink-50',
         textColor: 'text-[#d63384]',
+        syllabusUrl: '/mlt-syllabus.pdf',
     },
     {
         id: 2,
@@ -28,123 +34,129 @@ const resources = [
         color: 'from-[#d63384] to-[#b5165a]',
         light: 'bg-pink-50',
         textColor: 'text-[#d63384]',
+        syllabusUrl: '/cct-syllabus.pdf',
     },
 ];
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function PhysicsResources() {
+    useMeta({ title: 'Physics Notes for MLT & CCT Students', description: 'Syllabus-aligned physics class notes for Medical Laboratory Technology and Critical Care Technology students at Apollo College.' });
+
     const navigate = useNavigate();
 
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50">
-            {/* Header */}
-            <header className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        {/* Logo — extreme left */}
-                        <button onClick={() => navigate('/')} className="flex items-center gap-3">
-                            <img src="/logo.jpeg" alt="Cornerstone" className="w-10 h-10 object-contain rounded flex-shrink-0" />
-                            <span className="text-sm font-bold text-gray-900 leading-tight text-left hidden sm:block">
-                                Cornerstone Research<br />
-                                <span className="text-xs font-semibold text-[#FFB7C5]">Service and Publications</span>
-                            </span>
-                        </button>
-                        <div className="flex items-center space-x-3">
-                            <AnimatedMenuLink onClick={() => navigate(-1 as never)} text="← Back" />
-                            <span className="text-lg font-bold text-gray-900 hidden md:block">Physics Class Resources</span>
-                            <Button onClick={() => navigate('/contact')} className="bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white hover:opacity-90 border-0">
-                                Get Started
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+    const fadeInUp = {
+        hidden: { opacity: 0, y: 25 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+    };
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex flex-col relative overflow-hidden">
+            {/* Floating background blur elements */}
+            <div className="absolute top-20 left-10 w-72 h-72 bg-pink-200/35 rounded-full blur-3xl opacity-50 pointer-events-none animate-pulse" />
+            <div className="absolute bottom-10 right-10 w-96 h-96 bg-rose-200/25 rounded-full blur-3xl opacity-50 pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
+
+            <AdvancedNav />
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-16 flex-1 relative z-10">
+
                 {/* Hero */}
-                <div className="text-center mb-16">
-                    <div className="inline-flex items-center px-4 py-2 bg-pink-100 rounded-full mb-6">
-                        <BookOpen className="w-4 h-4 text-[#d63384] mr-2" />
-                        <span className="text-sm font-medium text-pink-700">Class Notes – Apollo MLT &amp; CCT</span>
+                <motion.div initial="hidden" animate="visible" variants={fadeInUp} className="text-center mb-16">
+                    <div className="inline-flex items-center px-5 py-2.5 bg-white/60 backdrop-blur-md rounded-full mb-8 shadow-[0_0_25px_rgba(214,51,132,0.12)] border border-white/60">
+                        <BookOpen className="w-5 h-5 text-[#d63384] mr-2" />
+                        <span className="text-xs font-black tracking-widest text-[#d63384] uppercase">Class Notes · Apollo MLT &amp; CCT</span>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+                    <h1 className="text-5xl sm:text-6xl font-black text-gray-900 leading-[1.1] mb-6 tracking-tighter">
                         Physics Notes for{' '}
-                        <span className="bg-gradient-to-r from-[#d63384] to-[#b5165a] bg-clip-text text-transparent">
-                            Medical Lab and Clinical Courses
+                        <span className="relative inline-block">
+                            <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-[#d63384] via-[#ff8fab] to-[#d63384]">
+                                Medical Lab &amp; Clinical Courses
+                            </span>
+                            <div className="absolute -bottom-2 left-0 w-full h-3 bg-[#d63384]/15 blur-md rounded-full"></div>
                         </span>
                     </h1>
-                    <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                        Welcome to the Physics Class Resources section for students of the Medical Laboratory Technology and
-                        Critical Care Technology courses. Contact us for access to concise, syllabus-aligned notes prepared to help you review
-                        important concepts quickly before exams and practical sessions.
+                    <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed font-semibold">
+                        Buy the full hardcopy printed notes directly from us. 
+                        We will ship the highest quality print materials directly to your doorstep.
                     </p>
-                </div>
+                </motion.div>
 
                 {/* Benefits */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-16">
+                <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
                     {[
                         { icon: CheckCircle, text: 'Syllabus-aligned, exam-focused content' },
+                        { icon: CheckCircle, text: 'Physical bound copy shipped directly to you' },
                         { icon: CheckCircle, text: 'Includes key definitions & short-answer questions' },
-                        { icon: CheckCircle, text: 'Updated each semester with latest syllabus' },
                     ].map((item, i) => (
-                        <div key={i} className="flex items-center space-x-3 bg-white rounded-xl p-4 shadow-sm border border-pink-100">
+                        <div key={i} className="flex items-center space-x-3 bg-white/70 backdrop-blur-md rounded-2xl p-5 shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] border border-white/80 hover:shadow-[0_15px_30px_-10px_rgba(0,0,0,0.1)] transition-all duration-300">
                             <item.icon className="w-5 h-5 text-[#d63384] flex-shrink-0" />
-                            <span className="text-sm text-gray-700 font-medium">{item.text}</span>
+                            <span className="text-sm text-gray-700 font-bold">{item.text}</span>
                         </div>
                     ))}
-                </div>
+                </motion.div>
 
-                {/* Resources */}
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-8">Available Downloads</h2>
+                {/* Resource cards */}
+                <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeInUp}>
+                    <h2 className="text-3xl font-black text-gray-900 mb-8 tracking-tight">Choose Your Course</h2>
                     <div className="grid md:grid-cols-2 gap-8">
                         {resources.map((res) => (
-                            <Card key={res.id} className="border border-gray-100 hover:shadow-xl transition-all duration-300 overflow-hidden">
-                                {/* Top gradient bar */}
-                                <div className={`h-2 bg-gradient-to-r ${res.color}`} />
-                                <CardContent className="p-8">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className={`w-14 h-14 ${res.light} rounded-2xl flex items-center justify-center`}>
-                                            <res.icon className={`w-7 h-7 ${res.textColor}`} />
+                            <motion.div key={res.id} whileHover={{ y: -8, scale: 1.015 }} whileTap={{ scale: 0.99 }} transition={{ type: 'spring', stiffness: 300, damping: 22 }}>
+                                <Card className="border border-white/60 bg-white/85 backdrop-blur-xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.08)] overflow-hidden h-full hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.15)] transition-all duration-500 rounded-[2.2rem] flex flex-col justify-between">
+                                    <div>
+                                        <div className={`h-2.5 bg-gradient-to-r ${res.color}`} />
+                                        <CardContent className="p-8">
+                                            <div className="flex items-start justify-between mb-6">
+                                                <div className={`w-14 h-14 ${res.light} rounded-2xl flex items-center justify-center shadow-inner`}>
+                                                    <res.icon className={`w-7 h-7 ${res.textColor}`} />
+                                                </div>
+                                                <span className={`px-4 py-1.5 ${res.light} ${res.textColor} text-xs font-black tracking-wider uppercase rounded-full shadow-sm`}>
+                                                    {res.badge}
+                                                </span>
+                                            </div>
+
+                                            <h3 className="text-2xl font-black text-gray-900 mb-1 tracking-tight">{res.title}</h3>
+                                            <p className="text-sm text-pink-600 font-bold mb-4">{res.subtitle}</p>
+                                            <p className="text-gray-600 leading-relaxed mb-6 text-sm font-medium">{res.description}</p>
+
+                                            <ul className="space-y-3 mb-6">
+                                                {['Key definitions & concepts', 'Short-answer & essay questions', 'Formula cheat sheets', 'Exam-ready study format'].map((pt) => (
+                                                    <li key={pt} className="flex items-center text-sm text-gray-700 font-semibold">
+                                                        <CheckCircle className={`w-4 h-4 ${res.textColor} mr-2.5 flex-shrink-0`} />
+                                                        {pt}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </CardContent>
+                                    </div>
+                                    <div className="p-8 pt-0 mt-auto">
+                                        <div className="flex flex-col sm:flex-row gap-3 border-t border-gray-100 pt-6">
+                                            {res.syllabusUrl && (
+                                                <a 
+                                                    href={res.syllabusUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="px-5 py-3 border-2 border-pink-100 text-[#d63384] hover:bg-pink-50 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all flex-1 shadow-sm"
+                                                >
+                                                    <Download className="w-4 h-4" />
+                                                    Syllabus PDF
+                                                </a>
+                                            )}
+                                            <Button
+                                                onClick={() => navigate('/order-hardcopy?course=' + encodeURIComponent(res.badge))}
+                                                className={`bg-gradient-to-r ${res.color} text-white hover:opacity-95 border-0 flex items-center justify-center gap-2 px-6 py-3 rounded-xl shadow-lg shadow-pink-200 flex-1 font-bold`}
+                                            >
+                                                <Search className="w-4 h-4" />
+                                                Order Hardcopy
+                                            </Button>
                                         </div>
-                                        <span className={`px-3 py-1 ${res.light} ${res.textColor} text-sm font-bold rounded-full`}>
-                                            {res.badge}
-                                        </span>
                                     </div>
-
-                                    <h3 className="text-xl font-bold text-gray-900 mb-1">{res.title}</h3>
-                                    <p className="text-sm text-gray-500 font-medium mb-4">{res.subtitle}</p>
-                                    <p className="text-gray-600 leading-relaxed mb-6">{res.description}</p>
-
-                                    <ul className="space-y-2 mb-8">
-                                        {['Key definitions', 'Short-answer questions', 'Formula summaries', 'Exam-ready format'].map((pt) => (
-                                            <li key={pt} className="flex items-center text-sm text-gray-600">
-                                                <CheckCircle className={`w-4 h-4 ${res.textColor} mr-2 flex-shrink-0`} />
-                                                {pt}
-                                            </li>
-                                        ))}
-                                    </ul>
-
-                                    <div className="flex flex-col items-end gap-3 border-t border-gray-100 pt-6">
-                                        <Button
-                                            onClick={() => navigate('/contact')}
-                                            className={`bg-gradient-to-r ${res.color} text-white hover:opacity-90 border-0 flex items-center gap-2 px-6`}
-                                        >
-                                            <Search className="w-4 h-4" />
-                                            Get Started
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                </Card>
+                            </motion.div>
                         ))}
                     </div>
-                </div>
+                </motion.div>
             </main>
 
-            <footer className="bg-gray-900 text-white py-8 mt-16">
-            <div className="max-w-7xl mx-auto px-4 text-center">
-                <p className="text-gray-400 text-sm">© 2024 Cornerstone Research Service and Publications. All rights reserved.</p>
-            </div>
-        </footer>
-        </div >
+            <Footer />
+        </div>
     );
 }

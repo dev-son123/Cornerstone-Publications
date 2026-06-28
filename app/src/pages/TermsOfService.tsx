@@ -1,19 +1,22 @@
-import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { AdvancedNav } from '../components/ui/advanced-nav';
+import { Footer } from '../components/Footer';
 
 export default function TermsOfService() {
-    const navigate = useNavigate();
-
+    useEffect(() => {
+        const prev = document.title;
+        document.title = 'Terms of Service | Cornerstone Research';
+        const m = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+        const pd = m?.content ?? '';
+        if (m) m.content = 'Review the Terms of Service for Cornerstone Research and Publication Services — covering service scope, confidentiality, payments, and author responsibilities.';
+        return () => { document.title = prev; if (m) m.content = pd; };
+    }, []);
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-8 sm:p-12">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-8 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
-                </button>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+            <AdvancedNav />
+            <div className="flex-1 pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 p-8 md:p-16">
+
 
                 <h1 className="text-3xl font-bold text-gray-900 mb-6">Terms of Service</h1>
                 <p className="text-gray-500 mb-8">Last updated: {new Date().toLocaleDateString()}</p>
@@ -71,11 +74,16 @@ export default function TermsOfService() {
                         </p>
                     </section>
 
-                    <section className="pt-6 border-t border-gray-100">
-                        <p>If you have any questions about these Terms, please contact us at support@cornerstone-research.com</p>
+                    <section className="pt-8 border-t border-slate-100 mt-10">
+                        <p className="text-sm text-slate-500 italic text-center">
+                            If you have any questions about these Terms, please contact us at <br/>
+                            <span className="text-[#d63384] font-bold">info.cornerstoneresearch@gmail.com</span>
+                        </p>
                     </section>
                 </div>
             </div>
         </div>
+        <Footer />
+    </div>
     );
 }

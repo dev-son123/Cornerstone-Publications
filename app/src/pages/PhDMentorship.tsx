@@ -1,17 +1,20 @@
-// import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, BookOpen, Award, FileText, MapPin, Mail, Phone, ExternalLink, GraduationCap } from 'lucide-react';
 import { SocialIcons } from '@/components/ui/social-icons';
 
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
+import { useMeta } from '@/hooks/useMeta';
+import { IntroSplash } from '@/components/IntroSplash';
 
 export default function PhDMentorship() {
-    const fadeInUp: any = {
+    useMeta({ title: 'PhD Mentorship Program', description: '3–4 year structured PhD mentoring' });
+    const fadeInUp: Variants = {
         hidden: { opacity: 0, y: 30 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
     };
 
-    const staggerContainer: any = {
+    const staggerContainer: Variants = {
         hidden: { opacity: 0 },
         visible: {
             opacity: 1,
@@ -21,15 +24,16 @@ export default function PhDMentorship() {
 
     return (
         <div className="min-h-screen bg-white">
+            <IntroSplash />
+
             {/* Hero Section */}
-            {/* @ts-ignore */}
             <motion.section
                 initial="hidden" animate="visible" variants={staggerContainer}
                 className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-pink-50 via-white to-pink-50 relative overflow-hidden"
             >
                 {/* Decorative floating blobs */}
                 <div className="absolute top-20 left-10 w-64 h-64 bg-pink-200/40 rounded-full blur-3xl opacity-60 mix-blend-multiply pointer-events-none animate-pulse"></div>
-                <div className="absolute bottom-10 right-10 w-72 h-72 bg-pink-200/40 rounded-full blur-3xl opacity-60 mix-blend-multiply pointer-events-none animate-pulse" style={{ animationDelay: '2s' }}></div>
+                <div className="absolute bottom-10 right-10 w-72 h-72 bg-pink-200/40 rounded-full blur-3xl opacity-60 mix-blend-multiply pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} aria-hidden="true"></div>
 
                 <div className="max-w-7xl mx-auto text-center relative z-10">
                     {/* Add Logo Transition Here */}
@@ -85,7 +89,6 @@ export default function PhDMentorship() {
             </motion.section>
 
             {/* Program Overview */}
-            {/* @ts-ignore */}
             <motion.section
                 initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeInUp}
                 className="py-16 px-4 sm:px-6 lg:px-8 bg-white"
@@ -153,13 +156,12 @@ export default function PhDMentorship() {
             </motion.section>
 
             {/* Roadmap */}
-            {/* @ts-ignore */}
             <motion.section
                 initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={staggerContainer}
                 className="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50/50 border-y border-gray-100 relative overflow-hidden"
             >
                 {/* Background Pattern */}
-                <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#d63384 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
+                <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#d63384 1px, transparent 1px)', backgroundSize: '32px 32px' }} aria-hidden="true"></div>
 
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="text-center mb-20">
@@ -248,7 +250,6 @@ export default function PhDMentorship() {
                         </motion.div>
 
                         {/* Year 4 */}
-                        {/* @ts-ignore */}
                         <motion.div variants={fadeInUp}>
                             <Card className="border-t-4 border-t-gray-800 hover:-translate-y-2 transition-transform duration-300 shadow-lg hover:shadow-xl bg-white h-full">
                                 <CardContent className="p-8">
@@ -319,9 +320,9 @@ export default function PhDMentorship() {
                                     <div className="bg-pink-50 p-2 rounded-lg group-hover:bg-[#d63384] transition-colors"><MapPin className="w-5 h-5 text-[#d63384] group-hover:text-white transition-colors" /></div>
                                     <div><strong className="block text-gray-900">Location</strong> <span className="text-sm">Chennai, India</span></div>
                                 </a>
-                                <a href="mailto:Info.cornerstoneresearch@gmail.com" className="group flex items-center gap-4 bg-white p-3 rounded-xl border border-gray-200 hover:border-[#d63384] transition-all hover:shadow-md cursor-pointer">
+                                <a href="mailto:info.cornerstoneresearch@gmail.com" className="group flex items-center gap-4 bg-white p-3 rounded-xl border border-gray-200 hover:border-[#d63384] transition-all hover:shadow-md cursor-pointer">
                                     <div className="bg-pink-50 p-2 rounded-lg group-hover:bg-[#d63384] transition-colors"><Mail className="w-5 h-5 text-[#d63384] group-hover:text-white transition-colors" /></div>
-                                    <div><strong className="block text-gray-900">Email Address</strong> <span className="text-sm break-all">Info.cornerstoneresearch@gmail.com</span></div>
+                                    <div><strong className="block text-gray-900">Email Address</strong> <span className="text-sm break-all">info.cornerstoneresearch@gmail.com</span></div>
                                 </a>
                                 <div className="grid grid-cols-2 gap-3">
                                     <a href="tel:+919962900969" className="group flex flex-col items-center justify-center gap-2 bg-white p-4 rounded-xl border border-gray-200 hover:border-[#d63384] hover:bg-pink-50/30 transition-all hover:shadow-md cursor-pointer text-center">
@@ -380,6 +381,9 @@ export default function PhDMentorship() {
                                         <a href="https://www.scopus.com/authid/detail.uri?authorId=57210173384" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-5 py-3 rounded-xl border border-gray-200 hover:border-[#d63384] hover:text-[#d63384] hover:bg-pink-50/50 transition-all font-semibold text-gray-700 group">
                                             SCOPUS ID <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-[#d63384] transition-colors" />
                                         </a>
+                                        <a href="https://scholar.google.com/citations?user=0TjhSU0AAAAJ&hl=en" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-5 py-3 rounded-xl border border-gray-200 hover:border-[#d63384] hover:text-[#d63384] hover:bg-pink-50/50 transition-all font-semibold text-gray-700 group">
+                                            Google Scholar Profile <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-[#d63384] transition-colors" />
+                                        </a>
                                     </div>
                                 </div>
                             </CardContent>
@@ -419,12 +423,16 @@ export default function PhDMentorship() {
                     href="https://wa.me/919962900969"
                     target="_blank"
                     rel="noopener noreferrer"
+                    title="Contact via WhatsApp"
+                    aria-label="Contact Mentor via WhatsApp"
                     className="flex items-center justify-center p-4 bg-gradient-to-r from-pink-400 to-pink-600 text-white rounded-full shadow-[0_10px_25px_rgba(34,197,94,0.4)] hover:shadow-[0_15px_35px_rgba(34,197,94,0.6)] hover:-translate-y-1 transition-all duration-300 group"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1" /></svg>
                 </a>
                 <a
                     href="tel:+919962900969"
+                    title="Call Mentor"
+                    aria-label="Call Mentor at +91 99629 00969"
                     className="flex items-center justify-center p-4 bg-gradient-to-r from-[#d63384] to-[#ff8fab] text-white rounded-full shadow-[0_10px_25px_rgba(214,51,132,0.4)] hover:shadow-[0_15px_35px_rgba(214,51,132,0.6)] hover:-translate-y-1 transition-all duration-300 group"
                 >
                     <Phone className="w-6 h-6 group-hover:scale-110 transition-transform" />

@@ -1,455 +1,477 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import {
+    ArrowLeft, LayoutDashboard, FileText, Bell,
+    BarChart2, Mail, Users, Settings, LogOut, Plus, Lock, Inbox, BookOpen
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import type { Contact, Submission, Article, EditorialMember, PastIssue } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth, friendlyAuthError } from '@/context/AuthContext';
+import { AuthComponent } from '@/components/ui/sign-up';
 
-type Tab = "overview"|"contacts"|"submissions"|"articles"|"board"|"issues";
-
-const s = {
-  shell:    { display:"flex", minHeight:"100vh", fontFamily:"system-ui,sans-serif" } as React.CSSProperties,
-  side:     { width:220, background:"#1a1a2e", display:"flex", flexDirection:"column" as const, padding:"24px 0", flexShrink:0 },
-  logo:     { padding:"0 20px 24px", borderBottom:"1px solid #333", marginBottom:8 },
-  sBtn:     { display:"block", width:"100%", textAlign:"left" as const, padding:"10px 20px", background:"none", border:"none", color:"#ccc", fontSize:14, cursor:"pointer" },
-  sActive:  { background:"#e91e8c22", color:"#e91e8c", borderRight:"3px solid #e91e8c" },
-  main:     { flex:1, padding:32, background:"#f8f9fa", overflowY:"auto" as const },
-  h3:       { fontSize:20, fontWeight:700, color:"#1a1a2e", marginBottom:16 } as React.CSSProperties,
-  card:     { background:"#fff", borderRadius:10, padding:"14px 16px", marginBottom:10, boxShadow:"0 1px 3px rgba(0,0,0,0.05)" } as React.CSSProperties,
-  kpi:      { background:"#fff", borderRadius:12, padding:20, boxShadow:"0 1px 4px rgba(0,0,0,0.06)" } as React.CSSProperties,
-  row:      { display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap" as const, gap:8 },
-  badge:    { fontSize:11, padding:"2px 8px", borderRadius:10, fontWeight:500 } as React.CSSProperties,
-  smBtn:    { fontSize:12, padding:"5px 12px", borderRadius:6, border:"none", background:"#f5f5f5", cursor:"pointer", color:"#333" } as React.CSSProperties,
-  primBtn:  { padding:"9px 18px", background:"#e91e8c", color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" } as React.CSSProperties,
-  ghostBtn: { padding:"9px 18px", background:"#fff", color:"#555", border:"1px solid #ddd", borderRadius:8, fontSize:13, cursor:"pointer" } as React.CSSProperties,
-  backBtn:  { background:"none", border:"none", color:"#1565c0", cursor:"pointer", fontSize:13, padding:"0 0 12px", display:"block" } as React.CSSProperties,
-  lbl:      { fontSize:13, fontWeight:500, color:"#444", display:"block", marginBottom:5 } as React.CSSProperties,
-  inp:      { width:"100%", boxSizing:"border-box" as const, border:"1.5px solid #e0e0e0", borderRadius:8, padding:"9px 12px", fontSize:14, fontFamily:"inherit", outline:"none" } as React.CSSProperties,
-  hint:     { color:"#999", fontSize:14 } as React.CSSProperties,
-  togLbl:   { display:"flex", alignItems:"center", gap:6, fontSize:13, cursor:"pointer", color:"#555" } as React.CSSProperties,
-};
-
-// ── OVERVIEW ─────────────────────────────────────────────────
-function Overview() {
-  const [counts, setCounts] = useState({contacts:0, submissions:0, articles:0, users:0 });
-  useEffect(() => {
-    Promise.all([
-      supabase.from("contacts").select("id",{count:"exact",head:true}),
-      supabase.from("submissions").select("id",{count:"exact",head:true}),
-      supabase.from("articles").select("id",{count:"exact",head:true}),
-      supabase.rpc("get_user_count"),
-    ]).then(([c,sub,a,u]) => setCounts({ contacts:c.count??0, submissions:sub.count??0, articles:a.count??0, users:u.data??0 }));
-  },[]);
-  const cards = [
-    {label:"Contact messages", value:counts.contacts,    color:"#e91e8c"},
-    {label:"Submissions",      value:counts.submissions, color:"#1565c0"},
-    {label:"Articles",         value:counts.articles,    color:"#2e7d32"},
-    {label:"Registered users", value:counts.users,       color:"#6a1b9a"},
-  ];
-  return (
-    <div>
-      <h3 style={s.h3}>Overview</h3>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:16,marginBottom:32}}>
-        {cards.map(c=>(
-          <div key={c.label} style={{...s.kpi,borderTop:`3px solid ${c.color}`}}>
-            <p style={{fontSize:36,fontWeight:700,margin:"0 0 4px",color:c.color}}>{c.value}</p>
-            <p style={{fontSize:13,color:"#888",margin:0}}>{c.label}</p>
-          </div>
-        ))}
-      </div>
-      <div style={{background:"#e3f2fd",borderRadius:10,padding:"14px 18px",fontSize:14}}>
-        <strong>Live links</strong>
-        <ul style={{margin:"8px 0 0",paddingLeft:20,lineHeight:2.2}}>
-          <li>Journal → <a href="/journal" target="_blank" style={{color:"#e91e8c"}}>cornerstonepublications.in/journal</a></li>
-          <li>Contact → <a href="/contact" target="_blank" style={{color:"#e91e8c"}}>cornerstonepublications.in/contact</a></li>
-        </ul>
-      </div>
+// ── UI Components ─────────────────────────────────────────────────────────────
+const MeshBackground = () => (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-pink-400/20 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#d63384]/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] rounded-full bg-amber-200/10 blur-[100px]" />
     </div>
-  );
+);
+
+// ── Tab components ────────────────────────────────────────────────────────────
+import { OverviewTab }       from '@/components/admin/tabs/OverviewTab';
+import { PublicationsTab }   from '@/components/admin/tabs/PublicationsTab';
+import { NotificationsTab }  from '@/components/admin/tabs/NotificationsTab';
+import { AnalyticsTab }      from '@/components/admin/tabs/AnalyticsTab';
+import { SubmissionsTab }    from '@/components/admin/tabs/SubmissionsTab';
+import { EmailBroadcastTab } from '@/components/admin/tabs/EmailBroadcastTab';
+import { AuthorsTab }        from '@/components/admin/tabs/AuthorsTab';
+import { ContactsTab }       from '@/components/admin/tabs/ContactsTab';
+import { IssuesTab }         from '@/components/admin/tabs/IssuesTab';
+import { AuthorView }         from '@/components/admin/AuthorView';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECRET TRIGGER CONFIG
+// Desktop  → press C then R then S (within 2 seconds each)
+// Mobile   → tap logo 5 times within 3 seconds
+// ─────────────────────────────────────────────────────────────────────────────
+const ADMIN_ROUTE = '/portal-cRs7x9mK';
+const KEY_SEQUENCE = ['c', 'r', 's'];
+const LOGO_TAP_COUNT = 5;
+
+export function useAdminTrigger() {
+    const navigate = useNavigate();
+    const [_tapCount, setTapCount] = useState(0);
+    const tapTimer = useRef<number | undefined>(undefined);
+
+    const goAdmin = () => {
+        window.open(ADMIN_ROUTE, '_blank');
+    };
+
+    useEffect(() => {
+        let progress = 0;
+        let sequenceTimer: number | undefined;
+        const handleKey = (e: KeyboardEvent) => {
+            const tag = (e.target as HTMLElement).tagName.toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+            if (e.key.toLowerCase() === KEY_SEQUENCE[progress]) {
+                progress++;
+                clearTimeout(sequenceTimer);
+                sequenceTimer = window.setTimeout(() => { progress = 0; }, 2000);
+                if (progress === KEY_SEQUENCE.length) {
+                    progress = 0;
+                    clearTimeout(sequenceTimer);
+                    goAdmin();
+                }
+            } else {
+                progress = 0;
+                clearTimeout(sequenceTimer);
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => { window.removeEventListener('keydown', handleKey); clearTimeout(sequenceTimer); };
+    }, [navigate]);
+
+    const logoTapHandler = () => {
+        const next = _tapCount + 1;
+        setTapCount(next);
+        
+        clearTimeout(tapTimer.current);
+        tapTimer.current = window.setTimeout(() => setTapCount(0), 3000);
+        
+        if (next >= LOGO_TAP_COUNT) {
+            clearTimeout(tapTimer.current);
+            setTapCount(0);
+            goAdmin();
+        }
+    };
+
+    return { logoTapHandler };
 }
 
-// ── CONTACTS ─────────────────────────────────────────────────
-function ContactsTab() {
-  const [items,setItems] = useState<Contact[]>([]);
-  const [loading,setLoading] = useState(true);
-  useEffect(()=>{
-    supabase.from("contacts").select("*").order("created_at",{ascending:false})
-      .then(({data})=>{setItems(data??[]);setLoading(false);});
-  },[]);
-  const mark = async(id:string, status:string)=>{
-    await supabase.from("contacts").update({status}).eq("id",id);
-    setItems(p=>p.map(c=>c.id===id?{...c,status:status as "new"|"read"|"replied"}:c));
-  };
-  const statusColor: Record<string,string> = {new:"#fce4ec",read:"#fff3e0",replied:"#e8f5e9"};
-  const statusText: Record<string,string>   = {new:"#c2185b",read:"#e65100",replied:"#2e7d32"};
-  if(loading) return <p style={s.hint}>Loading...</p>;
-  return (
-    <div>
-      <h3 style={s.h3}>Contact Messages ({items.length})</h3>
-      {items.length===0 && <p style={s.hint}>No messages yet.</p>}
-      {items.map(c=>(
-        <div key={c.id} style={{...s.card, borderLeft:`3px solid ${statusText[c.status]}`}}>
-          <div style={s.row}>
-            <div>
-              <strong style={{fontSize:15}}>{c.name}</strong>
-              <span style={{...s.badge,background:statusColor[c.status],color:statusText[c.status],marginLeft:8}}>{c.status}</span>
+// ─────────────────────────────────────────────────────────────────────────────
+// Tab definitions
+// ─────────────────────────────────────────────────────────────────────────────
+type TabId = 'overview' | 'publications' | 'submissions' | 'contacts' | 'notifications' | 'analytics' | 'emails' | 'authors' | 'issues';
+
+const TABS: { id: TabId; label: string; icon: any; badge?: string }[] = [
+    { id: 'overview',       label: 'Overview',       icon: LayoutDashboard },
+    { id: 'publications',   label: 'Publish Article',  icon: Plus },
+    { id: 'submissions',    label: 'Submissions',     icon: FileText },
+    { id: 'contacts',       label: 'Enquiries',       icon: Inbox },
+    { id: 'notifications',  label: 'Notifications',   icon: Bell },
+    { id: 'analytics',      label: 'Analytics',       icon: BarChart2 },
+    { id: 'emails',         label: 'Broadcasts',      icon: Mail },
+    { id: 'authors',        label: 'Authors',         icon: Users },
+    { id: 'issues',         label: 'Manage Archive',   icon: BookOpen },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AdminDashboard
+// ─────────────────────────────────────────────────────────────────────────────
+export default function AdminDashboard() {
+    const navigate = useNavigate();
+
+    // ── Auth check: wait for Supabase to resolve user ─────────────────────────
+    const { user, login, register, logout, resetPassword, isLoading: authLoading } = useAuth();
+
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [authChecked, setAuthChecked]   = useState(!authLoading);
+    const [isLoginMode, setIsLoginMode]   = useState(true);
+    const [activeTab, setActiveTab]       = useState<TabId>('overview');
+
+    // Publications form state
+    const [pubForm, setPubForm] = useState({
+        title: '', author: '', authorEmail: '', date: '', location: '',
+        volume: '', background: '', objectives: '', methods: '', results: '',
+        conclusion: '', keywords: '', references: '', pdf_url: '',
+    });
+    const [isPublishing, setIsPublishing] = useState(false);
+
+    // Overview state
+    const [submissionsCount, setSubmissionsCount]         = useState(0);
+    const [registeredUsersCount, setRegisteredUsersCount] = useState(0);
+    const [processedTodayCount, setProcessedTodayCount]   = useState(0);
+    const [recentProcesses, setRecentProcesses]           = useState<any[]>([]);
+    const [isLoading, setIsLoading]                       = useState(true);
+
+    useEffect(() => {
+        if (!authLoading) {
+            setIsAuthorized(user?.email === 'info.cornerstoneresearch@gmail.com' || user?.role === 'admin');
+            setAuthChecked(true);
+        }
+    }, [authLoading, user]);
+
+    // Always start requiring login on fresh admin page visit
+    const [portalSessionGranted, setPortalSessionGranted] = useState(() => {
+        // If AuthCallback already set this flag, we arrived from OAuth — grant immediately
+        return sessionStorage.getItem('adminPortalSession') === 'true';
+    });
+
+    useEffect(() => {
+        if (window.location.pathname === ADMIN_ROUTE) {
+            // If we already have a granted session (from OAuth callback), don't wipe it
+            if (sessionStorage.getItem('adminPortalSession') === 'true') {
+                setPortalSessionGranted(true);
+                return;
+            }
+        }
+    }, []);
+
+    // On every admin page visit: wipe any existing Supabase session
+    // so the user MUST manually log in via the portal form
+    // EXCEPT when arriving from OAuth callback (sessionStorage flag is set)
+    useEffect(() => {
+        if (window.location.pathname === ADMIN_ROUTE) {
+            if (sessionStorage.getItem('adminPortalSession') === 'true') return;
+            
+            import('@/lib/supabase').then(({ supabase }) => {
+                supabase.auth.signOut();
+            });
+        }
+    }, [ADMIN_ROUTE]);
+
+    // ── Data fetch ────────────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!isAuthorized) return;
+        (async () => {
+            setIsLoading(true);
+            try {
+                const [{ count: subCount }, { data: recent }] = await Promise.all([
+                    supabase.from('submissions').select('*', { count: 'exact', head: true }),
+                    supabase.from('submissions').select('*').order('created_at', { ascending: false }).limit(5),
+                ]);
+                setSubmissionsCount(subCount ?? 0);
+                setRecentProcesses(recent ?? []);
+                setRegisteredUsersCount(0); // fetched live in AuthorsTab
+                setProcessedTodayCount(0);
+            } catch { /* silent */ } finally { setIsLoading(false); }
+        })();
+    }, [isAuthorized]);
+
+    // ── Pub form handlers ─────────────────────────────────────────────────────
+    const handlePubChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setPubForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handlePublish = async () => {
+        if (!pubForm.title || !pubForm.author || !pubForm.authorEmail) {
+            toast.error('Please fill in Title, Author Name, and Email');
+            return;
+        }
+        setIsPublishing(true);
+        try {
+            // Smart extraction from volume_issue or prompt
+            const yearMatch = pubForm.volume.match(/\d{4}/);
+            const discoveredYear = yearMatch ? parseInt(yearMatch[0]) : (pubForm.date ? new Date(pubForm.date).getFullYear() : new Date().getFullYear());
+            
+            const volMatch = pubForm.volume.match(/Vol\s*(\d+)/i);
+            const discoveredVol = volMatch ? parseInt(volMatch[1]) : null;
+
+            const { error } = await supabase.from('articles').insert([{
+                title: pubForm.title, author_name: pubForm.author,
+                author_email: pubForm.authorEmail, publication_date: pubForm.date || null,
+                location: pubForm.location, volume_issue: pubForm.volume,
+                abstract_background: pubForm.background, abstract_objectives: pubForm.objectives,
+                abstract_methods: pubForm.methods, abstract_results: pubForm.results,
+                abstract_conclusion: pubForm.conclusion, keywords: pubForm.keywords,
+                references: pubForm.references, pdf_url: pubForm.pdf_url || null,
+                status: 'published', published: true, 
+                year: discoveredYear, volume: discoveredVol, // explicit numeric fields for better filtering
+                created_at: new Date().toISOString(),
+            }]);
+            if (error) throw error;
+            toast.success('Article published to the journal!');
+            setPubForm({ title:'', author:'', authorEmail:'', date:'', location:'', volume:'', background:'', objectives:'', methods:'', results:'', conclusion:'', keywords:'', references:'', pdf_url:'' });
+            setActiveTab('overview');
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to publish');
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
+    const handleConvertSubmission = (sub: any) => {
+        setPubForm({
+            ...pubForm,
+            title: sub.manuscript_title || '',
+            author: sub.author_name || '',
+            authorEmail: sub.author_email || '',
+            date: new Date().toISOString().split('T')[0],
+            location: sub.country || '',
+            pdf_url: sub.manuscript_url || '',
+        });
+        setActiveTab('publications');
+        toast.info('Submission data imported. Fill the details and click publish!');
+    };
+
+    // ── Loading ───────────────────────────────────────────────────────────────
+    if (!authChecked) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-white">
+                <MeshBackground />
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-14 h-14 border-4 border-pink-200 border-t-[#d63384] rounded-full animate-spin" />
+                    <p className="text-sm font-semibold text-gray-400">Loading admin portal…</p>
+                </div>
             </div>
-            <small style={{color:"#999"}}>{new Date(c.created_at).toLocaleString("en-IN")}</small>
-          </div>
-          <p style={{margin:"4px 0 2px",fontSize:13}}>
-            <a href={`mailto:${c.email}`} style={{color:"#1565c0"}}>{c.email}</a>
-          </p>
-          {c.subject && <p style={{margin:"2px 0",fontWeight:500,fontSize:13}}>{c.subject}</p>}
-          {c.message && <p style={{margin:"8px 0 10px",fontSize:14,lineHeight:1.5,color:"#333"}}>{c.message}</p>}
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <button style={s.smBtn} onClick={()=>mark(c.id,"read")}>Mark read</button>
-            <button style={{...s.smBtn,background:"#e8f5e9",color:"#2e7d32"}} onClick={()=>mark(c.id,"replied")}>Mark replied</button>
-            <a href={`mailto:${c.email}?subject=Re: ${c.subject||"Your enquiry"}`}
-              style={{...s.smBtn,textDecoration:"none",background:"#e3f2fd",color:"#1565c0"}}>Reply ↗</a>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+        );
+    }
 
-// ── SUBMISSIONS (matches YOUR exact schema) ───────────────────
-function SubmissionsTab() {
-  const [items,setItems] = useState<Submission[]>([]);
-  const [loading,setLoading] = useState(true);
-  useEffect(()=>{
-    supabase.from("submissions").select("*").order("created_at",{ascending:false})
-      .then(({data})=>{setItems(data??[]);setLoading(false);});
-  },[]);
-  const updateStatus = async(id:number, status:string)=>{
-    await supabase.from("submissions").update({status}).eq("id",id);
-    setItems(p=>p.map(x=>x.id===id?{...x,status}:x));
-  };
-  const statuses = ["Pending Review","Under Review","Accepted","Rejected"];
-  const statusBg:Record<string,string> = {"Pending Review":"#fff3e0","Under Review":"#e3f2fd","Accepted":"#e8f5e9","Rejected":"#ffebee"};
-  if(loading) return <p style={s.hint}>Loading...</p>;
-  return (
-    <div>
-      <h3 style={s.h3}>Manuscript Submissions ({items.length})</h3>
-      {items.length===0 && <p style={s.hint}>No submissions yet.</p>}
-      {items.map(sub=>(
-        <div key={sub.id} style={{...s.card, background:statusBg[sub.status]??"#fff"}}>
-          <div style={s.row}>
-            <div>
-              <strong style={{fontSize:15}}>{sub.manuscript_title??"(No title)"}</strong>
-              <span style={{...s.badge,marginLeft:8,background:statusBg[sub.status]??"#eee",color:"#333"}}>{sub.status}</span>
+    // ── Login or Unauthorized view ──────────────────────────────────────────
+    if (!user || !portalSessionGranted) {
+        return (
+            <div className="relative min-h-screen bg-white font-sans overflow-hidden">
+                <MeshBackground />
+                <Button variant="ghost" className="absolute top-4 left-4 z-50 text-gray-500 hover:bg-white/50 rounded-xl"
+                    onClick={() => navigate('/')}>
+                    <ArrowLeft className="w-4 h-4 mr-1" /> Return to Website
+                </Button>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen w-full flex flex-col">
+                    <AuthComponent
+                        brandName="Cornerstone Portal"
+                        isLogin={isLoginMode}
+                        onToggleMode={() => setIsLoginMode(m => !m)}
+                        onEmailSubmit={async (email, password) => {
+                            try {
+                                if (isLoginMode) {
+                                    await login(email, password);
+                                } else {
+                                    const { needsConfirmation } = await register('User', email, password);
+                                    if (needsConfirmation) toast.success('Check your email to verify!');
+                                }
+                            } catch (err: any) {
+                                throw new Error(friendlyAuthError(err) || err.message);
+                            }
+                        }}
+                        onForgotPassword={async (email) => {
+                            try {
+                                await resetPassword(email);
+                                toast.success('Password reset email sent! Please check your inbox.');
+                            } catch (err: any) {
+                                throw new Error(friendlyAuthError(err) || err.message);
+                            }
+                        }}
+                        onSuccess={() => {
+                            sessionStorage.setItem('adminPortalSession', 'true');
+                            setPortalSessionGranted(true);
+                        }}
+                    />
+                </motion.div>
             </div>
-            <small style={{color:"#999"}}>{new Date(sub.created_at).toLocaleString("en-IN")}</small>
-          </div>
-          {sub.author_name && (
-            <p style={{fontSize:13,color:"#555",margin:"5px 0 2px"}}>
-              <strong>Author:</strong> {sub.author_name}
-              {sub.author_email && <> · <a href={`mailto:${sub.author_email}`} style={{color:"#1565c0"}}>{sub.author_email}</a></>}
-            </p>
-          )}
-          {sub.journal && <p style={{fontSize:13,color:"#555",margin:"2px 0"}}><strong>Journal:</strong> {sub.journal}</p>}
-          {sub.affiliation && <p style={{fontSize:12,color:"#777",margin:"2px 0"}}>{sub.affiliation}{sub.country?` · ${sub.country}`:""}</p>}
-          {sub.message && <p style={{fontSize:13,color:"#333",margin:"6px 0 8px",lineHeight:1.5}}>{sub.message}</p>}
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
-            {statuses.map(st=>(
-              <button key={st} onClick={()=>updateStatus(sub.id,st)}
-                style={{...s.smBtn, background:sub.status===st?"#1565c0":"#f0f0f0", color:sub.status===st?"#fff":"#333", fontWeight:sub.status===st?600:400}}>
-                {st}
-              </button>
-            ))}
-            {sub.manuscript_url && <a href={sub.manuscript_url} target="_blank" rel="noopener noreferrer" style={{...s.smBtn,textDecoration:"none",background:"#e3f2fd",color:"#1565c0"}}>Manuscript ↗</a>}
-            {sub.supplementary_url && <a href={sub.supplementary_url} target="_blank" rel="noopener noreferrer" style={{...s.smBtn,textDecoration:"none",background:"#f3e5f5",color:"#6a1b9a"}}>Supplementary ↗</a>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+        );
+    }
 
-// ── ARTICLES ─────────────────────────────────────────────────
-function ArticlesTab() {
-  const [items,setItems]   = useState<Article[]>([]);
-  const [editing,setEditing] = useState<Partial<Article>|null>(null);
-  const [loading,setLoading] = useState(true);
-  const [saving,setSaving]   = useState(false);
+    const PRIMARY_ADMIN = 'info.cornerstoneresearch@gmail.com';
+    const isAdmin = (user.email === PRIMARY_ADMIN) || (user.role === 'admin');
 
-  const load = useCallback(async()=>{
-    const {data} = await supabase.from("articles").select("*").order("created_at",{ascending:false});
-    setItems(data??[]); setLoading(false);
-  },[]);
-  useEffect(()=>{load();},[load]);
-
-  const save = async()=>{
-    if(!editing) return;
-    setSaving(true);
-    if(editing.id) await supabase.from("articles").update(editing).eq("id",editing.id);
-    else           await supabase.from("articles").insert([{...editing,published:editing.published??false,featured:editing.featured??false}]);
-    setSaving(false); setEditing(null); load();
-  };
-
-  const toggle = async(id:number, field:"published"|"featured", val:boolean)=>{
-    await supabase.from("articles").update({[field]:val}).eq("id",id);
-    setItems(p=>p.map(a=>a.id===id?{...a,[field]:val}:a));
-  };
-
-  const del = async(id:number)=>{
-    if(!confirm("Delete this article?")) return;
-    await supabase.from("articles").delete().eq("id",id);
-    setItems(p=>p.filter(a=>a.id!==id));
-  };
-
-  if(loading) return <p style={s.hint}>Loading...</p>;
-
-  if(editing!==null) return (
-    <div>
-      <button style={s.backBtn} onClick={()=>setEditing(null)}>← Back</button>
-      <h3 style={s.h3}>{editing.id?"Edit Article":"New Article"}</h3>
-      {(["title","author_name","author_email","location","keywords","pdf_url"] as (keyof Article)[]).map(f=>(
-        <div key={String(f)} style={{marginBottom:12}}>
-          <label style={s.lbl}>{String(f).replace("_"," ").replace(/\b\w/g,l=>l.toUpperCase())}</label>
-          <input style={s.inp} value={(editing[f] as string)??""}
-            onChange={e=>setEditing((p: Partial<Article> | null)=>({...p!,[f]:e.target.value}))} />
-        </div>
-      ))}
-      <div style={{marginBottom:12}}>
-        <label style={s.lbl}>Abstract</label>
-        <textarea style={{...s.inp,minHeight:100,resize:"vertical"}} value={editing.abstract??""}
-          onChange={e=>setEditing((p: Partial<Article> | null)=>({...p!,abstract:e.target.value}))} />
-      </div>
-      <div style={{display:"flex",gap:24,marginBottom:16}}>
-        {(["published","featured"] as const).map(f=>(
-          <label key={f} style={s.togLbl}>
-            <input type="checkbox" checked={!!(editing[f])} onChange={e=>setEditing((p: Partial<Article> | null)=>({...p!,[f]:e.target.checked}))} />
-            <span style={{textTransform:"capitalize"}}>{f}</span>
-          </label>
-        ))}
-      </div>
-      <div style={{display:"flex",gap:10}}>
-        <button style={s.primBtn} onClick={save} disabled={saving}>{saving?"Saving...":"Save"}</button>
-        <button style={s.ghostBtn} onClick={()=>setEditing(null)}>Cancel</button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <h3 style={{...s.h3,margin:0}}>Articles ({items.length})</h3>
-        <button style={s.primBtn} onClick={()=>setEditing({published:false,featured:false})}>+ New Article</button>
-      </div>
-      {items.length===0 && <p style={s.hint}>No articles yet.</p>}
-      {items.map(a=>(
-        <div key={a.id} style={s.card}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
-            <div style={{flex:1}}>
-              <strong style={{fontSize:15}}>{a.title}</strong>
-              <p style={{fontSize:13,color:"#666",margin:"3px 0"}}>{a.author_name} · {a.year}</p>
+    // ── Banned View ──────────────────────────────────────────────────────────
+    if (user.role === 'banned') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+                <div className="bg-white p-10 rounded-3xl shadow-xl max-w-md w-full text-center border border-red-100">
+                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-10 h-10 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2">Access Restricted</h2>
+                    <p className="text-gray-500 mb-8 leading-relaxed">
+                        Your account has been restricted by the administrator. Please contact support if you believe this is an error.
+                    </p>
+                    <div className="space-y-3">
+                        <Button onClick={() => navigate('/')} variant="outline" className="w-full py-6 rounded-2xl font-bold">
+                            Return to Homepage
+                        </Button>
+                        <button onClick={async () => { await logout(); navigate('/'); }} 
+                            className="text-sm text-red-500 font-bold hover:underline">
+                            Log out
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div style={{display:"flex",gap:10,flexShrink:0,alignItems:"center"}}>
-              <label style={s.togLbl}>
-                <input type="checkbox" checked={a.published} onChange={e=>toggle(a.id,"published",e.target.checked)} />
-                <span style={{fontSize:12}}>Published</span>
-              </label>
-              <label style={s.togLbl}>
-                <input type="checkbox" checked={a.featured} onChange={e=>toggle(a.id,"featured",e.target.checked)} />
-                <span style={{fontSize:12}}>Featured</span>
-              </label>
+        );
+    }
+
+    // ── Author / Client View ─────────────────────────────────────────────────
+    if (!isAdmin) {
+        return (
+            <div className="min-h-screen bg-white/80">
+                <MeshBackground />
+                <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 h-16 flex items-center justify-between sticky top-0 z-40">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#d63384]">
+                             <FileText className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="font-black text-gray-900">Cornerstone portal</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className="text-xs font-bold text-gray-400 hidden sm:block">{user.name}</span>
+                        <button
+                            onClick={async () => { await logout(); navigate('/'); }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm text-red-500 font-bold hover:bg-red-50 transition-colors">
+                            <LogOut className="w-4 h-4" /> Log Out
+                        </button>
+                    </div>
+                </header>
+                <main className="p-4 md:p-8">
+                    <AuthorView userId={user.id} />
+                </main>
             </div>
-          </div>
-          {a.abstract && <p style={{fontSize:12,color:"#777",margin:"6px 0 8px",lineHeight:1.4}}>{a.abstract.slice(0,120)}…</p>}
-          <div style={{display:"flex",gap:8}}>
-            <button style={s.smBtn} onClick={()=>setEditing(a)}>Edit</button>
-            <button style={{...s.smBtn,color:"#c62828",background:"#ffebee"}} onClick={()=>del(a.id)}>Delete</button>
-            {a.pdf_url && <a href={a.pdf_url} target="_blank" style={{...s.smBtn,textDecoration:"none",background:"#e3f2fd",color:"#1565c0"}}>PDF ↗</a>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+        );
+    }
 
-// ── EDITORIAL BOARD ──────────────────────────────────────────
-function BoardTab() {
-  const [items,setItems]     = useState<EditorialMember[]>([]);
-  const [editing,setEditing] = useState<Partial<EditorialMember>|null>(null);
-  const [loading,setLoading] = useState(true);
+    // ── Full Admin Dashboard ──────────────────────────────────────────────────
+    return (
+        <div className="min-h-screen bg-white/60 flex">
+            <MeshBackground />
 
-  const load = useCallback(async()=>{
-    const {data} = await supabase.from("editorial_board").select("*").order("sort_order");
-    setItems(data??[]); setLoading(false);
-  },[]);
-  useEffect(()=>{load();},[load]);
+            {/* ── Sidebar ─────────────────────────────────────────────────── */}
+            <aside className="hidden md:flex flex-col w-56 bg-white/80 backdrop-blur-xl border-r border-gray-100/80 fixed top-0 left-0 h-full z-40">
+                {/* Brand */}
+                <div className="px-5 py-5 border-b border-gray-100">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#d63384,#b5165a)' }}>
+                            <Settings className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-black text-gray-900 leading-none">Cornerstone</p>
+                            <p className="text-[10px] text-[#d63384] font-semibold">Admin Portal</p>
+                        </div>
+                    </div>
+                </div>
 
-  const save = async()=>{
-    if(!editing) return;
-    if(editing.id) await supabase.from("editorial_board").update(editing).eq("id",editing.id);
-    else           await supabase.from("editorial_board").insert([{...editing,visible:true,sort_order:items.length}]);
-    setEditing(null); load();
-  };
+                {/* Nav */}
+                <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                    {TABS.map(tab => {
+                        const active = activeTab === tab.id;
+                        return (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                                    active
+                                        ? 'bg-[#d63384] text-white shadow-md shadow-pink-200'
+                                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                                }`}>
+                                <tab.icon className="w-4 h-4 flex-shrink-0" />
+                                <span className="flex-1 text-left">{tab.label}</span>
+                                {tab.badge && (
+                                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-pink-100 text-[#d63384]'}`}>
+                                        {tab.badge}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </nav>
 
-  if(loading) return <p style={s.hint}>Loading...</p>;
+                {/* Footer */}
+                <div className="p-3 border-t border-gray-100 space-y-1">
+                    <div className="px-3 py-2">
+                        <p className="text-xs font-semibold text-gray-700 truncate">{user?.email}</p>
+                        <p className="text-[10px] text-[#d63384] font-bold">Super Admin</p>
+                    </div>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+                        <ArrowLeft className="w-4 h-4" /> Back to site
+                    </button>
+                    <button
+                        onClick={async () => { await logout(); setIsAuthorized(false); setAuthChecked(false); navigate('/'); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors font-semibold">
+                        <LogOut className="w-4 h-4" /> Log Out
+                    </button>
+                </div>
+            </aside>
 
-  if(editing!==null) return (
-    <div>
-      <button style={s.backBtn} onClick={()=>setEditing(null)}>← Back</button>
-      <h3 style={s.h3}>{editing.id?"Edit Member":"Add Member"}</h3>
-      {(["name","title","institution","country"] as (keyof EditorialMember)[]).map(f=>(
-        <div key={String(f)} style={{marginBottom:12}}>
-          <label style={s.lbl}>{String(f).replace(/\b\w/g,l=>l.toUpperCase())}</label>
-          <input style={s.inp} value={(editing[f] as string)??""}
-            onChange={e=>setEditing((p: Partial<EditorialMember> | null)=>({...p!,[f]:e.target.value}))} />
-        </div>
-      ))}
-      <div style={{marginBottom:12}}>
-        <label style={s.lbl}>Role</label>
-        <select style={s.inp} value={editing.role??"member"}
-          onChange={e=>setEditing((p: Partial<EditorialMember> | null)=>({...p!,role:e.target.value as EditorialMember["role"]}))}>
-          <option value="editor_in_chief">Editor in Chief</option>
-          <option value="associate_editor">Associate Editor</option>
-          <option value="member">Member</option>
-        </select>
-      </div>
-      <div style={{display:"flex",gap:10}}>
-        <button style={s.primBtn} onClick={save}>Save</button>
-        <button style={s.ghostBtn} onClick={()=>setEditing(null)}>Cancel</button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <h3 style={{...s.h3,margin:0}}>Editorial Board ({items.length})</h3>
-        <button style={s.primBtn} onClick={()=>setEditing({role:"member"})}>+ Add Member</button>
-      </div>
-      {items.length===0 && <p style={s.hint}>No board members yet.</p>}
-      {items.map(m=>(
-        <div key={m.id} style={s.card}>
-          <div style={s.row}>
-            <div>
-              <strong>{m.name}</strong>
-              <span style={{...s.badge,marginLeft:8,background:m.role==="editor_in_chief"?"#fce4ec":"#e3f2fd",color:m.role==="editor_in_chief"?"#c2185b":"#1565c0"}}>
-                {m.role.replace("_"," ")}
-              </span>
-              {m.title && <p style={{fontSize:13,color:"#666",margin:"3px 0 1px"}}>{m.title}</p>}
-              {m.institution && <p style={{fontSize:12,color:"#888",margin:0}}>{m.institution}{m.country?`, ${m.country}`:""}</p>}
+            {/* ── Mobile top bar ────────────────────────────────────────────── */}
+            <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 px-4 h-14 flex items-center justify-between">
+                <p className="font-black text-gray-900 text-sm">Cornerstone Admin</p>
+                <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+                    {TABS.map(tab => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                            className={`p-2 rounded-lg flex-shrink-0 transition-colors ${activeTab === tab.id ? 'bg-pink-50 text-[#d63384]' : 'text-gray-400'}`}>
+                            <tab.icon className="w-4 h-4" />
+                        </button>
+                    ))}
+                </div>
             </div>
-            <div style={{display:"flex",gap:8}}>
-              <button style={s.smBtn} onClick={()=>setEditing(m)}>Edit</button>
-              <button style={{...s.smBtn,color:"#c62828",background:"#ffebee"}}
-                onClick={async()=>{if(!confirm("Remove?")) return; await supabase.from("editorial_board").delete().eq("id",m.id); setItems(p=>p.filter(x=>x.id!==m.id));}}>
-                Remove
-              </button>
-            </div>
-          </div>
+
+            {/* ── Main content ──────────────────────────────────────────────── */}
+            <main className="flex-1 md:ml-56 pt-14 md:pt-0 p-4 md:p-8 overflow-auto">
+                {/* Mobile tab label */}
+                <div className="md:hidden mb-4 flex items-center gap-2">
+                    {(() => { const t = TABS.find(x => x.id === activeTab); return t ? <><t.icon className="w-4 h-4 text-[#d63384]" /><h1 className="font-black text-gray-900">{t.label}</h1></> : null; })()}
+                </div>
+
+                <AnimatePresence mode="wait">
+                    {activeTab === 'overview' && (
+                        <OverviewTab
+                            submissionsCount={submissionsCount}
+                            registeredUsersCount={registeredUsersCount}
+                            processedTodayCount={processedTodayCount}
+                            recentProcesses={recentProcesses}
+                            isLoading={isLoading}
+                            onNavigate={(tab) => setActiveTab(tab as TabId)}
+                        />
+                    )}
+                    {activeTab === 'publications' && (
+                        <PublicationsTab
+                            pubForm={pubForm}
+                            onChange={handlePubChange}
+                            onPublish={handlePublish}
+                            isPublishing={isPublishing}
+                        />
+                    )}
+                    {activeTab === 'submissions'   && <SubmissionsTab onPublishClick={handleConvertSubmission} />}
+                    {activeTab === 'contacts'      && <ContactsTab />}
+                    {activeTab === 'notifications' && <NotificationsTab />}
+                    {activeTab === 'analytics'     && <AnalyticsTab />}
+                    {activeTab === 'emails'        && <EmailBroadcastTab />}
+                    {activeTab === 'authors'       && <AuthorsTab />}
+                    {activeTab === 'issues'        && <IssuesTab />}
+                </AnimatePresence>
+            </main>
         </div>
-      ))}
-    </div>
-  );
-}
-
-// ── PAST ISSUES ──────────────────────────────────────────────
-function IssuesTab() {
-  const [items,setItems]     = useState<PastIssue[]>([]);
-  const [editing,setEditing] = useState<Partial<PastIssue>|null>(null);
-  const [loading,setLoading] = useState(true);
-
-  const load = useCallback(async()=>{
-    const {data} = await supabase.from("past_issues").select("*").order("sort_order");
-    setItems(data??[]); setLoading(false);
-  },[]);
-  useEffect(()=>{load();},[load]);
-
-  const save = async()=>{
-    if(!editing) return;
-    if(editing.id) await supabase.from("past_issues").update(editing).eq("id",editing.id);
-    else           await supabase.from("past_issues").insert([{...editing,visible:true}]);
-    setEditing(null); load();
-  };
-
-  const toggleVis = async(id:string,visible:boolean)=>{
-    await supabase.from("past_issues").update({visible}).eq("id",id);
-    setItems(p=>p.map(i=>i.id===id?{...i,visible}:i));
-  };
-
-  if(loading) return <p style={s.hint}>Loading...</p>;
-
-  if(editing!==null) return (
-    <div>
-      <button style={s.backBtn} onClick={()=>setEditing(null)}>← Back</button>
-      <h3 style={s.h3}>{editing.id?"Edit Issue":"Add Issue"}</h3>
-      {([["year","Year (e.g. 2024)"],["volume","Volume (e.g. 3)"],["issue_range","Issue range (e.g. Issue 1-4)"],["label","Label (e.g. 2024 Collection)"]] as [keyof PastIssue,string][]).map(([f,lbl])=>(
-        <div key={String(f)} style={{marginBottom:12}}>
-          <label style={s.lbl}>{lbl}</label>
-          <input style={s.inp} value={(editing[f] as string)??""}
-            onChange={e=>setEditing((p: Partial<PastIssue> | null)=>({...p!,[f]:e.target.value}))} />
-        </div>
-      ))}
-      <div style={{display:"flex",gap:10}}>
-        <button style={s.primBtn} onClick={save}>Save</button>
-        <button style={s.ghostBtn} onClick={()=>setEditing(null)}>Cancel</button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <h3 style={{...s.h3,margin:0}}>Past Issues ({items.length})</h3>
-        <button style={s.primBtn} onClick={()=>setEditing({})}>+ Add Issue</button>
-      </div>
-      {items.map(issue=>(
-        <div key={issue.id} style={{...s.card,opacity:issue.visible?1:0.5}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <strong>{issue.label}</strong>
-              <p style={{fontSize:13,color:"#666",margin:"3px 0 0"}}>Volume {issue.volume} · {issue.issue_range}</p>
-            </div>
-            <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <label style={s.togLbl}>
-                <input type="checkbox" checked={issue.visible} onChange={e=>toggleVis(issue.id,e.target.checked)} />
-                <span style={{fontSize:12}}>Visible on journal</span>
-              </label>
-              <button style={s.smBtn} onClick={()=>setEditing(issue)}>Edit</button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── MAIN SHELL ───────────────────────────────────────────────
-export function AdminDashboard({ onLogout }: { onLogout: ()=>void }) {
-  const [tab,setTab] = useState<Tab>("overview");
-  const tabs: {id:Tab;label:string}[] = [
-    {id:"overview",    label:"Overview"},
-    {id:"contacts",    label:"Contacts"},
-    {id:"submissions", label:"Submissions"},
-    {id:"articles",    label:"Articles"},
-    {id:"board",       label:"Editorial Board"},
-    {id:"issues",      label:"Past Issues"},
-  ];
-  return (
-    <div style={s.shell}>
-      <aside style={s.side}>
-        <div style={s.logo}>
-          <span style={{fontWeight:700,color:"#e91e8c",fontSize:15}}>Cornerstone</span>
-          <span style={{fontSize:11,color:"#999",display:"block"}}>Admin Portal</span>
-        </div>
-        {tabs.map(t=>(
-          <button key={t.id} style={{...s.sBtn,...(tab===t.id?s.sActive:{})}} onClick={()=>setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-        <div style={{flex:1}} />
-        <button style={{...s.sBtn,color:"#ef9a9a",marginTop:8}} onClick={onLogout}>Sign out</button>
-      </aside>
-      <main style={s.main}>
-        {tab==="overview"    && <Overview />}
-        {tab==="contacts"    && <ContactsTab />}
-        {tab==="submissions" && <SubmissionsTab />}
-        {tab==="articles"    && <ArticlesTab />}
-        {tab==="board"       && <BoardTab />}
-        {tab==="issues"      && <IssuesTab />}
-      </main>
-    </div>
-  );
+    );
 }

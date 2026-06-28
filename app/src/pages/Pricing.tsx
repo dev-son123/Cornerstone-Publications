@@ -2,6 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, ArrowRight, HelpCircle } from 'lucide-react';
+import { AdvancedNav } from '@/components/ui/advanced-nav';
+import { useNavigate } from 'react-router-dom';
 import {
   Accordion,
   AccordionContent,
@@ -10,7 +12,7 @@ import {
 } from '@/components/ui/accordion';
 
 interface PricingProps {
-  onNavigate: (page: 'landing' | 'login' | 'register' | 'dashboard' | 'submit' | 'pricing' | 'journal') => void;
+  onNavigate?: (page: 'landing' | 'login' | 'register' | 'dashboard' | 'submit' | 'pricing' | 'journal') => void;
 }
 
 const plans = [
@@ -116,27 +118,22 @@ const faqs = [
   },
 ];
 
-export default function Pricing({ onNavigate }: PricingProps) {
+export default function Pricing({ onNavigate: _unused }: PricingProps) {
+  const navigate = useNavigate();
+  const onNavigate = (page: string) => {
+    if (page === 'landing') navigate('/');
+    else if (page === 'journal') navigate('/journal');
+    else if (page === 'login') navigate('/portal-cRs7x9mK');
+    else navigate('/contact');
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <button onClick={() => onNavigate('landing')} className="flex items-center gap-3">
-              <img src="/logo.jpeg" alt="Cornerstone" className="w-10 h-10 object-contain rounded flex-shrink-0" />
-              <span className="text-sm font-bold text-gray-900 leading-tight text-left">
-                Cornerstone Research<br />
-                <span className="text-xs font-semibold text-[#FFB7C5]">Service and Publications</span>
-              </span>
-            </button>
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="text-gray-600" onClick={() => onNavigate('login')}>Sign In</Button>
-              <Button className="bg-[#d63384] hover:bg-[#b5165a] text-white" onClick={() => onNavigate('register')}>Get Started</Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex flex-col relative overflow-hidden">
+      {/* Floating background blur elements */}
+      <div className="absolute top-20 left-10 w-72 h-72 bg-pink-200/35 rounded-full blur-3xl opacity-50 pointer-events-none animate-pulse" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-rose-200/25 rounded-full blur-3xl opacity-50 pointer-events-none animate-pulse" style={{ animationDelay: '2s' }} />
+
+      <AdvancedNav />
 
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
@@ -389,7 +386,7 @@ export default function Pricing({ onNavigate }: PricingProps) {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            © 2024 Cornerstone Research Service and Publications. All rights reserved.
+            © 2026 Cornerstone Research and Publication Services. All rights reserved.
           </div>
         </div>
       </footer>

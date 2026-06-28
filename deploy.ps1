@@ -86,8 +86,9 @@ if (Test-Path $deploymentZip) {
 
 try {
     Compress-Archive -Path "$distFolder/*" -DestinationPath $deploymentZip -Force
-    $zipSize = (Get-Item $deploymentZip).Length / 1MB
-    Write-Success "Deployment package created: deployment-build.zip ($([Math]::Round($zipSize, 2)) MB)"
+    $zipSizeRaw = (Get-Item $deploymentZip).Length / 1MB
+    $zipSize = [Math]::Round($zipSizeRaw, 2)
+    Write-Success "Deployment package created: deployment-build.zip ($zipSize MB)"
 } catch {
     Write-Error-Custom "Failed to create zip file: $_"
     exit 1

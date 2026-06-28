@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Upload, FileText, X, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Upload, FileText, X } from 'lucide-react';
+import { AdvancedNav } from '../components/ui/advanced-nav';
+import { Footer } from '../components/Footer';
 
 const JOURNALS = [
   'Journal of Clinical Nursing and Allied Health Practice',
@@ -111,7 +113,7 @@ export default function Submission() {
       if (dbError) throw dbError;
 
       // Send invisible email notification using FormSubmit
-      fetch("https://formsubmit.co/ajax/cornerstoneresearch2022@gmail.com", {
+      fetch("https://formsubmit.co/ajax/info.cornerstoneresearch@gmail.com", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
         body: JSON.stringify({
@@ -140,18 +142,30 @@ export default function Submission() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-xl p-12 max-w-lg w-full text-center">
-          <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-pink-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="bg-white rounded-[2rem] shadow-2xl shadow-pink-100 p-12 max-w-lg w-full text-center border border-pink-50 translate-y-[-20%]">
+          <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+            <CheckCircle2 className="w-12 h-12 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">Submission Received!</h2>
-          <p className="text-gray-600 mb-8">Thank you, <strong>{form.firstName}</strong>! Your manuscript has been submitted successfully. Our editorial team will review it and contact you at <strong>{form.email}</strong>.</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={() => navigate('/journal')} className="px-6 py-3 bg-[#d63384] text-white rounded-lg font-semibold hover:bg-[#b5165a] transition-colors">Back to Journal</button>
-            <button onClick={() => { setSubmitted(false); handleReset(); }} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors">Submit Another</button>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4 tracking-tight">Submission Received!</h2>
+          <p className="text-gray-600 mb-10 leading-relaxed text-lg italic underline decoration-pink-200 underline-offset-4 decoration-2">
+            Thank you, <strong>{form.firstName}</strong>! 
+            <br/><br/>
+            Your manuscript has been submitted successfully. Our editorial team will review it and contact you at <strong>{form.email}</strong>.
+          </p>
+          <div className="flex flex-col gap-4">
+            <button 
+              onClick={() => navigate('/journal')} 
+              className="w-full py-5 bg-gradient-to-r from-[#d63384] to-[#b5165a] text-white rounded-2xl font-bold shadow-xl shadow-pink-100/50 hover:opacity-90 transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-5 h-5" /> Back to Journal
+            </button>
+            <button 
+              onClick={() => { setSubmitted(false); handleReset(); }} 
+              className="w-full py-4 text-gray-500 font-semibold hover:text-gray-700 transition-colors"
+            >
+              Submit Another Manuscript
+            </button>
           </div>
         </div>
       </div>
@@ -159,17 +173,10 @@ export default function Submission() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-4">
-          <button onClick={() => navigate('/journal')} className="flex items-center gap-1 text-[#d63384] hover:text-[#b5165a] text-sm font-medium transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Journal
-          </button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <AdvancedNav />
 
-      <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="flex-1 max-w-4xl mx-auto px-4 pt-32 pb-20">
         <form onSubmit={handleSubmit} onReset={handleReset}>
           {/* Form Title */}
           <h1 className="text-2xl font-bold text-[#d63384] mb-8 tracking-wide uppercase">
@@ -337,7 +344,7 @@ export default function Submission() {
                   onClick={() => manuscriptRef.current?.click()}
                   className="flex items-center gap-2 px-4 py-2 bg-[#d63384] text-white text-sm font-semibold rounded hover:bg-[#b5165a] transition-colors"
                 >
-                  <Upload className="w-4 h-4" /> + Add Files
+                  <Upload className="w-4 h-4" /> + Add MainFiles
                 </button>
                 <div className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white min-h-[38px] flex items-center gap-2">
                   {manuscriptFile ? (
@@ -431,6 +438,7 @@ export default function Submission() {
           </div>
         </form>
       </div>
+      <Footer />
     </div>
   );
 }
