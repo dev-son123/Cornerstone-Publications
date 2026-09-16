@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Calendar, Trash2, Plus, Loader2, CheckCircle2,
-  EyeOff, Pencil, FileText, X, Check, AlertTriangle,
+  EyeOff, Pencil, FileText, X, Check, AlertTriangle, FolderMinus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -27,6 +27,50 @@ interface Paper {
   pages?: string;
   doi?: string;
   published: boolean;
+  pdf_url?: string | null;
+  source_submission_id?: number | null;
+}
+
+/**
+ * Deletes a paper's PDF from storage, but only when that file is safe to remove.
+ *
+ * The architecture (migration 002) gives published papers their own
+ * `article-pdfs` bucket, and CurrentIssueTab already treats "delete the article"
+ * as "delete its uploaded PDF too". This adds the check the shared case needs:
+ * if any OTHER article row points at the same URL, the file is still in use and
+ * is left alone. External links (a DOI landing page, a file on another host) are
+ * never touched, and manuscripts live in a different bucket entirely
+ * (`manuscript_files`), so an author's submission file can never be hit here.
+ *
+ * Returns a human-readable note describing what happened to the file.
+ */
+async function removeExclusivePdf(url: string | null | undefined, articleId: number): Promise<string> {
+  if (!url) return '';
+
+  const marker = '/article-pdfs/';
+  const i = url.indexOf(marker);
+  if (i === -1) return ' Its linked PDF is external and was left untouched.';
+
+  // Still referenced by another paper? Then it is shared — keep the file.
+  const { data: others, error: refErr } = await supabase
+    .from('articles')
+    .select('id')
+    .eq('pdf_url', url)
+    .neq('id', articleId)
+    .limit(1);
+
+  if (refErr) {
+    return ' Its PDF was left in storage (the reference check failed) — remove it manually if needed.';
+  }
+  if (others && others.length > 0) {
+    return ' Its PDF is shared with another paper and was kept in storage.';
+  }
+
+  const path = decodeURIComponent(url.slice(i + marker.length).split('?')[0]);
+  const { error } = await supabase.storage.from('article-pdfs').remove([path]);
+  return error
+    ? ` The PDF could not be removed (${error.message}) — delete it manually if needed.`
+    : ' Its PDF was removed from storage.';
 }
 
 /** Every write here is additionally enforced by RLS (migration 004, Part D): only
@@ -322,17 +366,18 @@ export function IssuesTab() {
   );
 }
 
-/** Papers filed inside one collection, with the option to unfile one. */
+/** Papers filed inside one collection: unfile one, or delete it outright. */
 function CollectionPapers({ issue, onChanged }: { issue: Issue; onChanged: () => void }) {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<number | null>(null);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('articles')
-      .select('id,title,author_name,issue,pages,doi,published')
+      .select('id,title,author_name,issue,pages,doi,published,pdf_url,source_submission_id')
       .eq('past_issue_id', issue.id)
       .order('issue', { ascending: true });
     setPapers((data || []) as Paper[]);
@@ -343,12 +388,71 @@ function CollectionPapers({ issue, onChanged }: { issue: Issue; onChanged: () =>
 
   const unfile = async (p: Paper) => {
     setBusy(p.id);
-    // Removes it from the collection only. The article itself stays published.
-    const { error } = await supabase
-      .from('articles').update({ past_issue_id: null }).eq('id', p.id);
+    // Removes it from the collection only. The article itself stays published,
+    // which means a published paper reappears under Current Issue.
+    const { data, error } = await supabase
+      .from('articles').update({ past_issue_id: null }).eq('id', p.id).select('id');
     setBusy(null);
     if (error) { toast.error(error.message); return; }
-    toast.success(`"${p.title}" removed from ${issue.label}. The article is still published.`);
+    // An RLS denial returns 0 rows with no error — never report a success that
+    // did not happen.
+    if (!data || data.length === 0) {
+      toast.error('Not permitted — administrator access is required.');
+      return;
+    }
+    toast.success(
+      p.published
+        ? `"${p.title}" was unfiled from ${issue.label}. It is still published and now appears under Current Issue.`
+        : `"${p.title}" was unfiled from ${issue.label}. The article was kept.`
+    );
+    setConfirmId(null);
+    load();
+    onChanged();
+  };
+
+  /**
+   * Permanently deletes the paper.
+   *
+   * What is and is not touched — checked against the live relationships:
+   *   • public.articles row .......... deleted (this IS the paper record)
+   *   • past_issue_id association .... goes with the row
+   *   • article-pdfs storage file .... deleted only when no other article
+   *                                    references the same URL (see
+   *                                    removeExclusivePdf)
+   *   • public.submissions row ....... KEPT. articles.source_submission_id is
+   *                                    ON DELETE SET NULL on the submissions
+   *                                    side (migration 003); the author's
+   *                                    manuscript record is not ours to destroy.
+   *   • past_issues collection ....... untouched
+   *
+   * The row is deleted BEFORE the file, so a denied delete cannot leave the
+   * paper in place with its PDF already gone.
+   */
+  const doDelete = async (p: Paper) => {
+    setBusy(p.id);
+
+    const { data, error } = await supabase
+      .from('articles').delete().eq('id', p.id).select('id');
+
+    if (error) {
+      setBusy(null);
+      toast.error('Delete failed: ' + error.message);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setBusy(null);
+      toast.error('Not permitted — administrator access is required to delete a paper.');
+      return;
+    }
+
+    const fileNote = await removeExclusivePdf(p.pdf_url, p.id);
+    setBusy(null);
+    setConfirmId(null);
+
+    toast.success(
+      `"${p.title}" was deleted from ${issue.label}.${fileNote}` +
+      (p.source_submission_id ? ` Submission #${p.source_submission_id} was kept.` : '')
+    );
     load();
     onChanged();
   };
@@ -365,24 +469,72 @@ function CollectionPapers({ issue, onChanged }: { issue: Issue; onChanged: () =>
       ) : (
         <div className="space-y-2">
           {papers.map(p => (
-            <div key={p.id} className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 px-3 py-2">
-              <span className="text-[10px] font-black text-[#d63384] bg-pink-50 rounded px-2 py-1 flex-shrink-0">
-                {p.issue != null ? `ISS ${p.issue}` : '—'}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{p.title}</p>
-                <p className="text-[11px] text-gray-400 truncate">
-                  {p.author_name || 'Unknown'}
-                  {p.pages ? ` · pp. ${p.pages}` : ''}
-                  {p.doi ? ` · ${p.doi}` : ''}
-                  {p.published ? '' : ' · DRAFT'}
-                </p>
+            <div key={p.id} className="bg-white rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <span className="text-[10px] font-black text-[#d63384] bg-pink-50 rounded px-2 py-1 flex-shrink-0">
+                  {p.issue != null ? `ISS ${p.issue}` : '—'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{p.title}</p>
+                  <p className="text-[11px] text-gray-400 truncate">
+                    {p.author_name || 'Unknown'}
+                    {p.pages ? ` · pp. ${p.pages}` : ''}
+                    {p.doi ? ` · ${p.doi}` : ''}
+                    {p.published ? '' : ' · DRAFT'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button onClick={() => unfile(p)} disabled={busy === p.id}
+                    title={`Remove from ${issue.label} but keep the paper — it becomes unfiled and can be re-filed into another collection`}
+                    className="text-[11px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-all flex items-center gap-1.5">
+                    {busy === p.id && confirmId !== p.id
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <FolderMinus className="w-3 h-3" />}
+                    Unfile
+                  </button>
+                  <button onClick={() => setConfirmId(confirmId === p.id ? null : p.id)}
+                    title="Delete Paper — permanently removes this paper"
+                    className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1.5 rounded-lg hover:bg-red-100 transition-all flex items-center gap-1.5">
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </button>
+                </div>
               </div>
-              <button onClick={() => unfile(p)} disabled={busy === p.id}
-                title="Remove from this collection (keeps the article)"
-                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex-shrink-0">
-                {busy === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-              </button>
+
+              {confirmId === p.id && (
+                <div className="mx-3 mb-3 p-4 rounded-xl bg-red-50 border border-red-200">
+                  <p className="text-sm font-bold text-red-900 flex items-center gap-2 mb-1">
+                    <AlertTriangle className="w-4 h-4" /> Delete this paper?
+                  </p>
+                  <p className="text-xs text-red-800 mb-1">
+                    Are you sure you want to remove &quot;{p.title}&quot; from the {issue.label}?
+                  </p>
+                  <p className="text-xs text-red-800 mb-3">
+                    The paper is deleted permanently and stops appearing on the public
+                    Past Issues page.
+                    {p.pdf_url?.includes('/article-pdfs/')
+                      ? ' Its uploaded PDF is deleted from storage too, unless another paper still uses the same file.'
+                      : ''}
+                    {p.source_submission_id
+                      ? ` The original submission #${p.source_submission_id} will NOT be deleted.`
+                      : ''}
+                    {' '}To keep the paper and only take it out of this collection, cancel and use{' '}
+                    <strong>Unfile</strong> instead.
+                  </p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setConfirmId(null)} disabled={busy === p.id}
+                      className="px-4 py-2 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                      Cancel
+                    </button>
+                    <button onClick={() => doDelete(p)} disabled={busy === p.id}
+                      className="px-4 py-2 text-xs font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 flex items-center gap-2 disabled:opacity-70">
+                      {busy === p.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                      Delete Paper
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

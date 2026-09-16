@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner';
 import LandingPage from '@/pages/LandingPage';
 import { AdminPortal } from './components/admin/AdminPortal';
 import Journal from '@/pages/Journal';
+import PaperDetail from '@/pages/PaperDetail';
 import ResearchHub from '@/pages/ResearchHub';
 import PhysicsResources from '@/pages/PhysicsResources';
 import ContactSupport from '@/pages/ContactSupport';
@@ -137,6 +138,8 @@ function App() {
             <Route element={<AnimatedLayout />}>
               <Route path="/" element={<LandingPage />} />
               <Route path="/journal" element={<Journal />} />
+              {/* Public read-only reader for one published paper */}
+              <Route path="/journal/paper/:id" element={<PaperDetail />} />
               <Route path="/research-hub" element={<ResearchHub />} />
               <Route path="/physics-resources" element={<PhysicsResources />} />
               <Route path="/contact" element={<ContactSupport />} />

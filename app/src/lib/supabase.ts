@@ -56,6 +56,10 @@ export interface Article {
   year?: number;
   volume?: number;
   issue?: number;
+  // Archive linkage + citation metadata (migration 004)
+  past_issue_id?: string | null;
+  pages?: string;
+  doi?: string;
   created_at: string;
   updated_at: string;
 }

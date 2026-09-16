@@ -3,6 +3,7 @@
 // When admin toggles Published/Visible → change appears here immediately.
 
 import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import type { Article, PastIssue, EditorialMember } from "../../lib/supabaseClient";
 
@@ -127,46 +128,58 @@ export function CurrentIssueSection() {
         </p>
       </div>
       <div className="space-y-4">
+        {/* Same card contract as the archive: the paper opens in the shared
+            reader at /journal/paper/:id, which is what renders the PDF. */}
         {articles.map((article) => (
           <div
             key={article.id}
             className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg hover:border-pink-300 transition-all"
           >
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
-              {article.title}
-            </h3>
-            {article.author_name && (
-              <p className="text-sm text-gray-600 mb-1">
-                <strong>Author:</strong> {article.author_name}
-              </p>
-            )}
-            {article.year && (
-              <p className="text-xs text-gray-500 mb-2">
-                <strong>Year:</strong> {article.year}
-              </p>
-            )}
-            {article.abstract && (
-              <p className="text-xs text-gray-700 leading-relaxed mb-2">
-                {article.abstract.length > 250
-                  ? article.abstract.substring(0, 250) + "…"
-                  : article.abstract}
-              </p>
-            )}
-            {article.keywords && (
-              <p className="text-xs text-gray-500 mb-2">
-                <strong>Keywords:</strong> {article.keywords}
-              </p>
-            )}
-            {article.pdf_url && (
-              <a
-                href={article.pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block bg-pink-500 text-white px-4 py-2 rounded text-xs font-semibold hover:bg-pink-600 transition-colors"
+            <Link to={`/journal/paper/${article.id}`} className="block group">
+              <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors">
+                {article.title}
+              </h3>
+              {article.author_name && (
+                <p className="text-sm text-gray-600 mb-1">
+                  <strong>Author:</strong> {article.author_name}
+                </p>
+              )}
+              {article.year && (
+                <p className="text-xs text-gray-500 mb-2">
+                  <strong>Year:</strong> {article.year}
+                </p>
+              )}
+              {article.abstract && (
+                <p className="text-xs text-gray-700 leading-relaxed mb-2">
+                  {article.abstract.length > 250
+                    ? article.abstract.substring(0, 250) + "…"
+                    : article.abstract}
+                </p>
+              )}
+              {article.keywords && (
+                <p className="text-xs text-gray-500 mb-2">
+                  <strong>Keywords:</strong> {article.keywords}
+                </p>
+              )}
+            </Link>
+            <div className="flex gap-2 mt-3">
+              <Link
+                to={`/journal/paper/${article.id}`}
+                className="inline-block bg-white border border-pink-300 text-pink-600 px-4 py-2 rounded text-xs font-semibold hover:bg-pink-50 transition-colors"
               >
-                Download PDF ↓
-              </a>
-            )}
+                Read Paper →
+              </Link>
+              {article.pdf_url && (
+                <a
+                  href={article.pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block bg-pink-500 text-white px-4 py-2 rounded text-xs font-semibold hover:bg-pink-600 transition-colors"
+                >
+                  View PDF ↓
+                </a>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -187,7 +200,22 @@ type ArchivePaper = Pick<
 export function PastIssuesSection() {
   const [issues, setIssues] = useState<PastIssue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openIssue, setOpenIssue] = useState<PastIssue | null>(null);
+
+  // The open collection lives in the URL (?collection=<id>) rather than in
+  // local state, so returning from a paper's reader lands back on the
+  // collection the reader was opened from instead of the grid.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openId = searchParams.get("collection");
+  const openIssue = openId ? issues.find(i => i.id === openId) ?? null : null;
+
+  const setOpenIssue = (issue: PastIssue | null) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (issue) next.set("collection", issue.id);
+      else next.delete("collection");
+      return next;
+    });
+  };
 
   useEffect(() => {
     // No .eq("visible", true) needed — RLS (migration 004, Part D) only returns
@@ -319,32 +347,37 @@ function CollectionView({ issue, onBack }: { issue: PastIssue; onBack: () => voi
   );
 }
 
+// The whole card is a link to the public reader at /journal/paper/:id, so the
+// paper opens by its own database id — never by position in this list. The PDF
+// link stays a separate anchor for readers who only want the file; its
+// stopPropagation-free markup is fine because it is a sibling, not a child, of
+// the card link.
 function ArchivePaperCard({ p }: { p: ArchivePaper }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg hover:border-pink-300 transition-all">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">{p.title}</h3>
-      {p.author_name && (
-        <p className="text-sm text-gray-600 mb-1"><strong>Authors:</strong> {p.author_name}</p>
-      )}
-      <p className="text-xs text-gray-500 mb-2">
-        {p.issue != null && <><strong>Issue:</strong> {p.issue}&nbsp;&nbsp;</>}
-        {p.pages && <><strong>Pages:</strong> {p.pages}&nbsp;&nbsp;</>}
-        {p.doi && <><strong>DOI:</strong> {p.doi}</>}
-      </p>
-      {open && p.abstract && (
-        <p className="text-xs text-gray-700 leading-relaxed mb-2">{p.abstract}</p>
-      )}
-      {open && p.keywords && (
-        <p className="text-xs text-gray-500 mb-2"><strong>Keywords:</strong> {p.keywords}</p>
-      )}
-      <div className="flex gap-2 mt-3">
-        {p.abstract && (
-          <button type="button" onClick={() => setOpen(o => !o)}
-            className="bg-white border border-pink-300 text-pink-600 px-4 py-2 rounded text-xs font-semibold hover:bg-pink-50 transition-colors">
-            {open ? "Hide" : "Read Paper"}
-          </button>
+      <Link to={`/journal/paper/${p.id}`} className="block group">
+        <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-pink-600 transition-colors">
+          {p.title}
+        </h3>
+        {p.author_name && (
+          <p className="text-sm text-gray-600 mb-1"><strong>Authors:</strong> {p.author_name}</p>
         )}
+        <p className="text-xs text-gray-500 mb-2">
+          {p.issue != null && <><strong>Issue:</strong> {p.issue}&nbsp;&nbsp;</>}
+          {p.pages && <><strong>Pages:</strong> {p.pages}&nbsp;&nbsp;</>}
+          {p.doi && <><strong>DOI:</strong> {p.doi}</>}
+        </p>
+        {p.abstract && (
+          <p className="text-xs text-gray-700 leading-relaxed mb-2">
+            {p.abstract.length > 220 ? p.abstract.slice(0, 220) + "…" : p.abstract}
+          </p>
+        )}
+      </Link>
+      <div className="flex gap-2 mt-3">
+        <Link to={`/journal/paper/${p.id}`}
+          className="inline-block bg-white border border-pink-300 text-pink-600 px-4 py-2 rounded text-xs font-semibold hover:bg-pink-50 transition-colors">
+          Read Paper →
+        </Link>
         {p.pdf_url && (
           <a href={p.pdf_url} target="_blank" rel="noopener noreferrer"
             className="inline-block bg-pink-500 text-white px-4 py-2 rounded text-xs font-semibold hover:bg-pink-600 transition-colors">

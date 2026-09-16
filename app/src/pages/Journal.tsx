@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EditorialBoardSection, CurrentIssueSection, PastIssuesSection, ManuscriptForm } from '@/components/journal/JournalSections';
@@ -49,6 +49,9 @@ const AnimatedMenuLink = ({
     </button>
 );
 
+const VIEWS = ['home', 'editorial', 'current', 'issues', 'submit', 'authors', 'charges', 'copyright'] as const;
+type JournalView = (typeof VIEWS)[number];
+
 export default function Journal() {
     const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
@@ -56,7 +59,26 @@ export default function Journal() {
         hidden: { opacity: 0, y: 30 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
     };
-    const [view, setView] = useState<'home' | 'editorial' | 'current' | 'issues' | 'submit' | 'authors' | 'charges' | 'copyright'>('home');
+    // The section is mirrored in the URL (?view=issues) so a visitor can be sent
+    // straight to a section — and so returning from a paper's reader restores
+    // the Past Issues section instead of dropping back to Home.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const viewFromUrl = searchParams.get('view');
+    const [view, setView] = useState<JournalView>(
+        VIEWS.includes(viewFromUrl as JournalView) ? (viewFromUrl as JournalView) : 'home'
+    );
+
+    useEffect(() => {
+        // Keep the URL in step with the section, preserving ?collection= (owned
+        // by PastIssuesSection) while it is relevant.
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (view === 'home') next.delete('view');
+            else next.set('view', view);
+            if (view !== 'issues') next.delete('collection');
+            return next;
+        }, { replace: true });
+    }, [view, setSearchParams]);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 60);

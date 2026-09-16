@@ -249,7 +249,15 @@ export default function AdminDashboard() {
         return { volume: data?.[0]?.volume ?? null, issue: data?.[0]?.issue ?? null };
     };
 
-    const handlePublish = async () => {
+    /**
+     * `overrides.pdf_url` exists because of a real bug: PublicationsTab may
+     * upload the PDF inside the same click that publishes. The upload writes the
+     * URL into pubForm via onChange, but this function was already captured by
+     * that click and still closes over the PREVIOUS pubForm, so it inserted
+     * pdf_url = null and the uploaded file was orphaned. The freshly uploaded
+     * URL is therefore handed over directly instead of being read from state.
+     */
+    const handlePublish = async (overrides?: { pdf_url?: string }) => {
         if (!pubForm.title || !pubForm.author || !pubForm.authorEmail) {
             toast.error('Please fill in Title, Author Name, and Email');
             return;
@@ -307,7 +315,8 @@ export default function AdminDashboard() {
                 abstract_background: pubForm.background, abstract_objectives: pubForm.objectives,
                 abstract_methods: pubForm.methods, abstract_results: pubForm.results,
                 abstract_conclusion: pubForm.conclusion, keywords: pubForm.keywords,
-                references: pubForm.references, pdf_url: pubForm.pdf_url || null,
+                references: pubForm.references,
+                pdf_url: (overrides?.pdf_url ?? pubForm.pdf_url) || null,
                 status: 'published', published: true,
                 year: archiveYear ?? discoveredYear, volume, issue,
                 journal: pubForm.journal || null,

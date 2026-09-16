@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 interface Props {
   pubForm: Record<string, string>;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
-  onPublish: () => Promise<void>;
+  /** `overrides` carries a PDF URL uploaded during this same click — see below. */
+  onPublish: (overrides?: { pdf_url?: string }) => Promise<void>;
   isPublishing: boolean;
 }
 
@@ -72,15 +73,21 @@ export function PublicationsTab({ pubForm, onChange, onPublish, isPublishing }: 
     // A PDF that was chosen but never uploaded used to be silently dropped —
     // the article published with no pdf_url and the admin had no idea. Upload
     // it here first, and abort the publish if that fails.
+    let freshUrl = uploadedUrl;
     if (pdfFile && !uploadedUrl) {
       try {
-        await doUpload();
+        freshUrl = await doUpload();
       } catch (err: any) {
         toast.error('PDF upload failed, article not published: ' + err.message);
         return;
       }
     }
-    await onPublish();
+
+    // Pass the URL through explicitly rather than trusting the state write in
+    // doUpload() to reach the publish handler. onPublish was captured when this
+    // click started, so it still sees the pubForm from BEFORE the upload — that
+    // is exactly how a freshly uploaded PDF ended up saved as pdf_url = null.
+    await onPublish(freshUrl ? { pdf_url: freshUrl } : undefined);
     setPdfFile(null);
     setUploadedUrl('');
   };
