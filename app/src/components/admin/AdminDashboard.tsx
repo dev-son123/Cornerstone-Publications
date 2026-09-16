@@ -3,22 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
     ArrowLeft, LayoutDashboard, FileText, Bell,
-    BarChart2, Mail, Users, Settings, LogOut, Plus, Lock, Inbox, BookOpen
+    BarChart2, Mail, Users, Settings, LogOut, Plus, Lock, Inbox, BookOpen, Newspaper
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, friendlyAuthError } from '@/context/AuthContext';
+import { isAdminUser } from '@/hooks/useIsAdmin';
 import { AuthComponent } from '@/components/ui/sign-up';
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-const MeshBackground = () => (
-    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-pink-400/20 blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#d63384]/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] rounded-full bg-amber-200/10 blur-[100px]" />
-    </div>
-);
 
 // ── Tab components ────────────────────────────────────────────────────────────
 import { OverviewTab }       from '@/components/admin/tabs/OverviewTab';
@@ -30,7 +22,18 @@ import { EmailBroadcastTab } from '@/components/admin/tabs/EmailBroadcastTab';
 import { AuthorsTab }        from '@/components/admin/tabs/AuthorsTab';
 import { ContactsTab }       from '@/components/admin/tabs/ContactsTab';
 import { IssuesTab }         from '@/components/admin/tabs/IssuesTab';
+import { CurrentIssueTab }   from '@/components/admin/tabs/CurrentIssueTab';
 import { AuthorView }         from '@/components/admin/AuthorView';
+
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+const MeshBackground = () => (
+    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-pink-400/20 blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-[#d63384]/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] rounded-full bg-amber-200/10 blur-[100px]" />
+    </div>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SECRET TRIGGER CONFIG
@@ -94,10 +97,11 @@ export function useAdminTrigger() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab definitions
 // ─────────────────────────────────────────────────────────────────────────────
-type TabId = 'overview' | 'publications' | 'submissions' | 'contacts' | 'notifications' | 'analytics' | 'emails' | 'authors' | 'issues';
+type TabId = 'overview' | 'currentissue' | 'publications' | 'submissions' | 'contacts' | 'notifications' | 'analytics' | 'emails' | 'authors' | 'issues';
 
 const TABS: { id: TabId; label: string; icon: any; badge?: string }[] = [
     { id: 'overview',       label: 'Overview',       icon: LayoutDashboard },
+    { id: 'currentissue',   label: 'Current Issue',   icon: Newspaper },
     { id: 'publications',   label: 'Publish Article',  icon: Plus },
     { id: 'submissions',    label: 'Submissions',     icon: FileText },
     { id: 'contacts',       label: 'Enquiries',       icon: Inbox },
@@ -122,13 +126,21 @@ export default function AdminDashboard() {
     const [isLoginMode, setIsLoginMode]   = useState(true);
     const [activeTab, setActiveTab]       = useState<TabId>('overview');
 
-    // Publications form state
-    const [pubForm, setPubForm] = useState({
+    // Publications form state.
+    // volumeNo/issueNo are the numeric columns CurrentIssueSection filters on;
+    // `volume` remains the free-text "Vol 2, Issue 4" label.
+    // submissionId links the article back to the submission it came from.
+    const EMPTY_PUB_FORM = {
         title: '', author: '', authorEmail: '', date: '', location: '',
-        volume: '', background: '', objectives: '', methods: '', results: '',
+        volume: '', volumeNo: '', issueNo: '', journal: '', submissionId: '',
+        pastIssueId: '', pages: '', doi: '',
+        background: '', objectives: '', methods: '', results: '',
         conclusion: '', keywords: '', references: '', pdf_url: '',
-    });
+    };
+    const [pubForm, setPubForm] = useState(EMPTY_PUB_FORM);
     const [isPublishing, setIsPublishing] = useState(false);
+    // Guards against a second click landing before isPublishing has re-rendered.
+    const publishLock = useRef(false);
 
     // Overview state
     const [submissionsCount, setSubmissionsCount]         = useState(0);
@@ -139,7 +151,7 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         if (!authLoading) {
-            setIsAuthorized(user?.email === 'info.cornerstoneresearch@gmail.com' || user?.role === 'admin');
+            setIsAuthorized(isAdminUser(user));
             setAuthChecked(true);
         }
     }, [authLoading, user]);
@@ -179,10 +191,14 @@ export default function AdminDashboard() {
         (async () => {
             setIsLoading(true);
             try {
-                const [{ count: subCount }, { data: recent }] = await Promise.all([
-                    supabase.from('submissions').select('*', { count: 'exact', head: true }),
-                    supabase.from('submissions').select('*').order('created_at', { ascending: false }).limit(5),
-                ]);
+                // One round trip, and only the five columns the overview card
+                // renders. This used to be two queries, the second a select('*')
+                // that pulled every column of every recent submission.
+                const { data: recent, count: subCount } = await supabase
+                    .from('submissions')
+                    .select('id, manuscript_title, author_name, author_email, status', { count: 'exact' })
+                    .order('created_at', { ascending: false })
+                    .limit(5);
                 setSubmissionsCount(subCount ?? 0);
                 setRecentProcesses(recent ?? []);
                 setRegisteredUsersCount(0); // fetched live in AuthorsTab
@@ -197,21 +213,94 @@ export default function AdminDashboard() {
         setPubForm(prev => ({ ...prev, [name]: value }));
     };
 
+    /**
+     * Resolve the volume/issue the article should be filed under.
+     * CurrentIssueSection shows only the articles whose volume+issue match the
+     * newest published row, so an article with NULL volume/issue can silently
+     * fail to appear. Precedence: explicit numbers → parsed from the free-text
+     * label → whatever the current issue already uses.
+     */
+    const resolveVolumeIssue = async (): Promise<{ volume: number | null; issue: number | null }> => {
+        const explicitVol = pubForm.volumeNo ? Number(pubForm.volumeNo) : null;
+        const explicitIss = pubForm.issueNo ? Number(pubForm.issueNo) : null;
+        if (explicitVol !== null || explicitIss !== null) {
+            return { volume: explicitVol, issue: explicitIss };
+        }
+
+        const volMatch = pubForm.volume.match(/Vol(?:ume)?\.?\s*(\d+)/i);
+        const issMatch = pubForm.volume.match(/Iss(?:ue)?\.?\s*(\d+)/i);
+        if (volMatch || issMatch) {
+            return {
+                volume: volMatch ? parseInt(volMatch[1]) : null,
+                issue: issMatch ? parseInt(issMatch[1]) : null,
+            };
+        }
+
+        // Fall back to the issue currently on display, using the same ordering
+        // as CurrentIssueSection so the article lands where the admin expects.
+        const { data } = await supabase
+            .from('articles')
+            .select('volume, issue')
+            .eq('published', true)
+            .order('volume', { ascending: false })
+            .order('issue', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1);
+        return { volume: data?.[0]?.volume ?? null, issue: data?.[0]?.issue ?? null };
+    };
+
     const handlePublish = async () => {
         if (!pubForm.title || !pubForm.author || !pubForm.authorEmail) {
             toast.error('Please fill in Title, Author Name, and Email');
             return;
         }
+        if (publishLock.current) return;      // double-click guard
+        publishLock.current = true;
         setIsPublishing(true);
         try {
-            // Smart extraction from volume_issue or prompt
-            const yearMatch = pubForm.volume.match(/\d{4}/);
-            const discoveredYear = yearMatch ? parseInt(yearMatch[0]) : (pubForm.date ? new Date(pubForm.date).getFullYear() : new Date().getFullYear());
-            
-            const volMatch = pubForm.volume.match(/Vol\s*(\d+)/i);
-            const discoveredVol = volMatch ? parseInt(volMatch[1]) : null;
+            const submissionId = pubForm.submissionId ? Number(pubForm.submissionId) : null;
 
-            const { error } = await supabase.from('articles').insert([{
+            // Refuse to publish the same submission twice. A partial unique
+            // index on articles.source_submission_id enforces this in the
+            // database too, so a race cannot slip past.
+            if (submissionId !== null) {
+                const { data: already } = await supabase
+                    .from('articles')
+                    .select('id, title')
+                    .eq('source_submission_id', submissionId)
+                    .maybeSingle();
+                if (already) {
+                    toast.error(`Submission #${submissionId} is already published as article #${already.id} ("${already.title}").`);
+                    return;
+                }
+            }
+
+            const yearMatch = pubForm.volume.match(/\d{4}/);
+            const discoveredYear = yearMatch
+                ? parseInt(yearMatch[0])
+                : (pubForm.date ? new Date(pubForm.date).getFullYear() : new Date().getFullYear());
+
+            const resolved = await resolveVolumeIssue();
+            let volume = resolved.volume;
+            const issue = resolved.issue;
+
+            // A chosen collection is authoritative for year/volume: filing a
+            // paper into "2024 Collection" while stamping it 2026 would make
+            // the archive inconsistent with itself.
+            let archiveYear: number | null = null;
+            if (pubForm.pastIssueId) {
+                const { data: coll } = await supabase
+                    .from('past_issues')
+                    .select('year, volume, label')
+                    .eq('id', pubForm.pastIssueId)
+                    .maybeSingle();
+                if (coll) {
+                    archiveYear = coll.year;
+                    if (volume === null) volume = coll.volume;
+                }
+            }
+
+            const { data: created, error } = await supabase.from('articles').insert([{
                 title: pubForm.title, author_name: pubForm.author,
                 author_email: pubForm.authorEmail, publication_date: pubForm.date || null,
                 location: pubForm.location, volume_issue: pubForm.volume,
@@ -219,33 +308,68 @@ export default function AdminDashboard() {
                 abstract_methods: pubForm.methods, abstract_results: pubForm.results,
                 abstract_conclusion: pubForm.conclusion, keywords: pubForm.keywords,
                 references: pubForm.references, pdf_url: pubForm.pdf_url || null,
-                status: 'published', published: true, 
-                year: discoveredYear, volume: discoveredVol, // explicit numeric fields for better filtering
-                created_at: new Date().toISOString(),
-            }]);
+                status: 'published', published: true,
+                year: archiveYear ?? discoveredYear, volume, issue,
+                journal: pubForm.journal || null,
+                source_submission_id: submissionId,
+                // Archive membership. Null => the paper lives in the current
+                // issue only and is not filed under Past Issues.
+                past_issue_id: pubForm.pastIssueId || null,
+                pages: pubForm.pages || null,
+                doi: pubForm.doi || null,
+            }]).select('id').single();
+
             if (error) throw error;
-            toast.success('Article published to the journal!');
-            setPubForm({ title:'', author:'', authorEmail:'', date:'', location:'', volume:'', background:'', objectives:'', methods:'', results:'', conclusion:'', keywords:'', references:'', pdf_url:'' });
+
+            // Keep the submission and the published article linked, and move the
+            // submission out of the review queue.
+            if (submissionId !== null) {
+                const { error: statusErr } = await supabase
+                    .from('submissions')
+                    .update({ status: 'Accepted', status_updated_at: new Date().toISOString() })
+                    .eq('id', submissionId);
+                if (statusErr) {
+                    console.warn('[publish] article created but submission status not updated:', statusErr);
+                    toast.warning(`Article published, but submission #${submissionId} status could not be updated.`);
+                }
+            }
+
+            const where = volume != null
+                ? `Volume ${volume}${issue != null ? `, Issue ${issue}` : ''}`
+                : 'the current issue';
+            toast.success(`Article #${created.id} published to ${where} — it is now visible in Current Issue.`);
+
+            setPubForm(EMPTY_PUB_FORM);
             setActiveTab('overview');
         } catch (err: any) {
-            toast.error(err.message || 'Failed to publish');
+            const dup = /duplicate key|articles_source_submission_id_key/i.test(err?.message ?? '');
+            toast.error(dup
+                ? 'This submission has already been published.'
+                : (err.message || 'Failed to publish'));
         } finally {
+            publishLock.current = false;
             setIsPublishing(false);
         }
     };
 
     const handleConvertSubmission = (sub: any) => {
         setPubForm({
-            ...pubForm,
+            ...EMPTY_PUB_FORM,
             title: sub.manuscript_title || '',
             author: sub.author_name || '',
             authorEmail: sub.author_email || '',
             date: new Date().toISOString().split('T')[0],
             location: sub.country || '',
+            journal: sub.journal || '',
+            submissionId: String(sub.id),
             pdf_url: sub.manuscript_url || '',
         });
         setActiveTab('publications');
-        toast.info('Submission data imported. Fill the details and click publish!');
+        if (!sub.manuscript_title) {
+            toast.warning('This submission has no title recorded. Enter one before publishing.');
+        } else {
+            toast.info('Submission data imported. Fill the details and click publish!');
+        }
     };
 
     // ── Loading ───────────────────────────────────────────────────────────────
@@ -305,8 +429,7 @@ export default function AdminDashboard() {
         );
     }
 
-    const PRIMARY_ADMIN = 'info.cornerstoneresearch@gmail.com';
-    const isAdmin = (user.email === PRIMARY_ADMIN) || (user.role === 'admin');
+    const isAdmin = isAdminUser(user);
 
     // ── Banned View ──────────────────────────────────────────────────────────
     if (user.role === 'banned') {
@@ -468,6 +591,7 @@ export default function AdminDashboard() {
                     {activeTab === 'notifications' && <NotificationsTab />}
                     {activeTab === 'analytics'     && <AnalyticsTab />}
                     {activeTab === 'emails'        && <EmailBroadcastTab />}
+                    {activeTab === 'currentissue'  && <CurrentIssueTab onAddClick={() => setActiveTab('publications')} />}
                     {activeTab === 'authors'       && <AuthorsTab />}
                     {activeTab === 'issues'        && <IssuesTab />}
                 </AnimatePresence>

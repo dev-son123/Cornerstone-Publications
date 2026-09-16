@@ -78,10 +78,15 @@ export function CurrentIssueSection() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // published = true is the single source of truth for "publicly visible".
+    // past_issue_id IS NULL keeps Current Issue and Past Issues disjoint: once a
+    // paper is filed into an archive collection it belongs to that collection,
+    // not to the current issue. RLS additionally hides anything unpublished.
     supabase
       .from("articles")
       .select("*")
       .eq("published", true)
+      .is("past_issue_id", null)
       .order("volume", { ascending: false })
       .order("issue", { ascending: false })
       .order("created_at", { ascending: false })
@@ -170,16 +175,41 @@ export function CurrentIssueSection() {
 }
 
 // ── PAST ISSUES ──────────────────────────────────────────────
+// Two views in one component: the grid of collections, and — once a collection
+// is clicked — that collection's published papers grouped by issue number.
+// Everything is read from the database; nothing here is hardcoded.
+
+type ArchivePaper = Pick<
+  Article,
+  "id" | "title" | "author_name" | "abstract" | "keywords" | "pdf_url" | "issue" | "year"
+> & { pages?: string; doi?: string };
+
 export function PastIssuesSection() {
   const [issues, setIssues] = useState<PastIssue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openIssue, setOpenIssue] = useState<PastIssue | null>(null);
 
   useEffect(() => {
-    supabase.from("past_issues").select("*").eq("visible", true).order("sort_order")
-      .then(({ data }) => { setIssues(data ?? []); setLoading(false); });
+    // No .eq("visible", true) needed — RLS (migration 004, Part D) only returns
+    // visible collections to non-admins, and an admin legitimately sees the
+    // hidden ones here too. Ordering by year keeps it correct even when
+    // sort_order was never set.
+    supabase
+      .from("past_issues")
+      .select("*")
+      .order("year", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        setIssues(data ?? []);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) return <p className="text-gray-400 italic py-5">Loading past issues...</p>;
+
+  if (openIssue) {
+    return <CollectionView issue={openIssue} onBack={() => setOpenIssue(null)} />;
+  }
 
   if (issues.length === 0) return (
     <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-10 text-center">
@@ -191,65 +221,141 @@ export function PastIssuesSection() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {issues.map(issue => (
-        <div key={issue.id} className="bg-white border border-gray-200 rounded-lg p-5 text-center hover:shadow-md transition-shadow">
+        <button
+          key={issue.id}
+          type="button"
+          onClick={() => setOpenIssue(issue)}
+          className="bg-white border border-gray-200 rounded-lg p-5 text-center hover:shadow-md hover:border-pink-300 transition-all cursor-pointer w-full"
+        >
           <p className="text-lg font-bold text-gray-900 mb-1">{issue.label}</p>
           <p className="text-xs text-gray-500 m-0">Volume {issue.volume} · {issue.issue_range}</p>
-        </div>
+          <p className="text-[11px] text-pink-600 font-semibold mt-2 m-0">View papers →</p>
+        </button>
       ))}
     </div>
   );
 }
 
-// ── SAMPLE ARTICLE ───────────────────────────────────────────
-export function SampleArticleSection() {
-  const [article, setArticle] = useState<Article | null>(null);
+// ── ONE COLLECTION'S PAPERS ──────────────────────────────────
+function CollectionView({ issue, onBack }: { issue: PastIssue; onBack: () => void }) {
+  const [papers, setPapers] = useState<ArchivePaper[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from("articles").select("*")
-      .eq("featured", true).eq("published", true)
-      .order("updated_at", { ascending: false })
-      .limit(1).single()
-      .then(({ data }) => { setArticle(data); setLoading(false); });
-  }, []);
+    let cancelled = false;
+    setLoading(true);
 
-  if (loading) return <p className="text-gray-400 italic py-5">Loading sample article...</p>;
+    // Papers are linked by past_issue_id (migration 004, Part D). Older rows published
+    // before that column existed are matched on (year, volume) as a fallback so
+    // nothing already in the archive disappears.
+    (async () => {
+      const cols = "id,title,author_name,abstract,keywords,pdf_url,issue,year,pages,doi";
+      const { data: linked } = await supabase
+        .from("articles").select(cols)
+        .eq("past_issue_id", issue.id).eq("published", true);
 
-  if (!article) return (
-    <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-10 text-center">
-      <p className="italic text-gray-400 m-0">No sample article currently featured.</p>
-    </div>
-  );
+      let rows = linked ?? [];
+      if (rows.length === 0) {
+        const { data: legacy } = await supabase
+          .from("articles").select(cols)
+          .eq("published", true).eq("year", issue.year).eq("volume", issue.volume);
+        rows = legacy ?? [];
+      }
+      if (!cancelled) {
+        rows.sort((a, b) => (a.issue ?? 0) - (b.issue ?? 0));
+        setPapers(rows as ArchivePaper[]);
+        setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [issue.id, issue.year, issue.volume]);
+
+  // Group by issue number so a collection with several issues reads clearly.
+  const groups = papers.reduce<Record<string, ArchivePaper[]>>((acc, p) => {
+    const key = p.issue != null ? String(p.issue) : "other";
+    (acc[key] ||= []).push(p);
+    return acc;
+  }, {});
+  const groupKeys = Object.keys(groups).sort((a, b) =>
+    a === "other" ? 1 : b === "other" ? -1 : Number(a) - Number(b));
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">{article.title}</h2>
-      <div className="text-sm leading-loose text-gray-700 border-l-4 border-pink-500 pl-4 mb-4">
-        {article.author_name && <p className="m-0"><strong>Author:</strong> {article.author_name}</p>}
-        {article.author_email && <p className="m-0"><strong>Email:</strong> {article.author_email}</p>}
-        {article.year && <p className="m-0"><strong>Date:</strong> {article.year}</p>}
-        {article.location && <p className="m-0"><strong>Address:</strong> {article.location}</p>}
-      </div>
-      {article.pdf_url && (
-        <a href={article.pdf_url} target="_blank" rel="noopener noreferrer"
-          className="inline-block bg-pink-500 text-white px-6 py-3 rounded text-sm font-semibold mb-5 hover:bg-pink-600 transition-colors">
-          Download PDF ↓
-        </a>
-      )}
-      {article.abstract && (
-        <div>
-          <h3 className="text-base font-semibold mb-2">Abstract</h3>
-          <p className="text-sm leading-relaxed text-gray-700">{article.abstract}</p>
-        </div>
-      )}
-      {article.keywords && (
-        <p className="mt-4 text-xs">
-          <strong>Keywords:</strong> <span className="text-gray-600">{article.keywords}</span>
+    <div>
+      <button type="button" onClick={onBack}
+        className="text-sm font-semibold text-pink-600 hover:text-pink-700 mb-4">
+        ← Back to Past Issues
+      </button>
+
+      <div className="mb-6 p-4 bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg border border-pink-200">
+        <p className="m-0 text-base font-bold text-pink-900">{issue.label}</p>
+        <p className="m-0 text-sm text-pink-800">
+          Volume {issue.volume} · {issue.year} · {issue.issue_range}
         </p>
+      </div>
+
+      {loading ? (
+        <p className="text-gray-400 italic py-5">Loading papers...</p>
+      ) : papers.length === 0 ? (
+        <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-10 text-center">
+          <div className="text-5xl mb-3">📭</div>
+          <p className="text-gray-400 m-0">No papers have been published in this collection yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {groupKeys.map(key => (
+            <div key={key}>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
+                {key === "other" ? "Other papers" : `Issue ${key}`}
+              </p>
+              <div className="space-y-4">
+                {groups[key].map(p => <ArchivePaperCard key={p.id} p={p} />)}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
 }
+
+function ArchivePaperCard({ p }: { p: ArchivePaper }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg hover:border-pink-300 transition-all">
+      <h3 className="text-lg font-bold text-gray-900 mb-2">{p.title}</h3>
+      {p.author_name && (
+        <p className="text-sm text-gray-600 mb-1"><strong>Authors:</strong> {p.author_name}</p>
+      )}
+      <p className="text-xs text-gray-500 mb-2">
+        {p.issue != null && <><strong>Issue:</strong> {p.issue}&nbsp;&nbsp;</>}
+        {p.pages && <><strong>Pages:</strong> {p.pages}&nbsp;&nbsp;</>}
+        {p.doi && <><strong>DOI:</strong> {p.doi}</>}
+      </p>
+      {open && p.abstract && (
+        <p className="text-xs text-gray-700 leading-relaxed mb-2">{p.abstract}</p>
+      )}
+      {open && p.keywords && (
+        <p className="text-xs text-gray-500 mb-2"><strong>Keywords:</strong> {p.keywords}</p>
+      )}
+      <div className="flex gap-2 mt-3">
+        {p.abstract && (
+          <button type="button" onClick={() => setOpen(o => !o)}
+            className="bg-white border border-pink-300 text-pink-600 px-4 py-2 rounded text-xs font-semibold hover:bg-pink-50 transition-colors">
+            {open ? "Hide" : "Read Paper"}
+          </button>
+        )}
+        {p.pdf_url && (
+          <a href={p.pdf_url} target="_blank" rel="noopener noreferrer"
+            className="inline-block bg-pink-500 text-white px-4 py-2 rounded text-xs font-semibold hover:bg-pink-600 transition-colors">
+            View PDF ↓
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 // ── MANUSCRIPT SUBMISSION FORM ───────────────────────────────
 // Matches YOUR exact submissions table schema

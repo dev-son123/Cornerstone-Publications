@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ElementType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminTrigger } from '@/components/admin/AdminDashboard';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ import { Footer } from '@/components/Footer';
 
 interface Service {
   id: string;
-  icon: React.ElementType;
+  icon: ElementType;
   title: string;
   description: string;
   benefits: string[];
@@ -39,7 +40,6 @@ interface Service {
   };
 }
 
-import React from 'react';
 
 const services: Service[] = [
   {

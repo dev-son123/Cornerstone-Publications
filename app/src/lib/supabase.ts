@@ -53,7 +53,6 @@ export interface Article {
   status?: string;
   pdf_url?: string;
   published: boolean;
-  featured: boolean;
   year?: number;
   volume?: number;
   issue?: number;

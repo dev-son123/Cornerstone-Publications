@@ -18,7 +18,6 @@ export interface Article {
   publication_date: string;
   pdf_url: string | null;
   published: boolean;
-  featured: boolean;
   created_at: string;
   // Structured abstract fields
   abstract_background: string;
@@ -31,7 +30,6 @@ export interface Article {
 
 export function usePublishedArticles() {
   const [articles, setArticles]   = useState<Article[]>([]);
-  const [featured, setFeatured]   = useState<Article | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
 
@@ -50,10 +48,6 @@ export function usePublishedArticles() {
 
         setArticles(data ?? []);
 
-        // Find featured article
-        const featuredArticle = (data ?? []).find(a => a.featured);
-        setFeatured(featuredArticle ?? null);
-
       } catch (err: any) {
         console.error('[usePublishedArticles] Error:', err);
         setError(err.message);
@@ -65,5 +59,5 @@ export function usePublishedArticles() {
     fetchArticles();
   }, []);
 
-  return { articles, featured, loading, error };
+  return { articles, loading, error };
 }

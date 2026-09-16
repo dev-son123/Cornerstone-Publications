@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { Session, User as SupabaseUser, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
@@ -72,7 +72,11 @@ function mapSupabaseUser(u: SupabaseUser): AppUser {
     email: u.email ?? '',
     phone: u.phone ?? undefined,
     name: meta.full_name ?? meta.name ?? u.email?.split('@')[0] ?? u.phone ?? 'User',
-    role: (meta.role as UserRole) ?? 'client',
+    // NEVER read the role from user_metadata: it is supplied by the client at
+    // sign-up, so anyone calling supabase.auth.signUp() directly could declare
+    // themselves an admin. public.profiles.role (fetched below) is the only
+    // trusted source, and the database enforces the same thing via RLS.
+    role: 'client',
     avatarUrl: meta.avatar_url ?? meta.picture ?? undefined,
     orcidId: meta.orcid_id ?? undefined,
     emailConfirmed: !!u.email_confirmed_at,
@@ -86,16 +90,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // The id whose profile we have already loaded. Supabase fires
+  // onAuthStateChange for INITIAL_SESSION and again on every TOKEN_REFRESHED
+  // (hourly, and on tab focus), and getSession() resolves separately — so the
+  // profiles table was being queried several times per page load for the same
+  // user. Skipping the redundant round trips is the single biggest win for
+  // admin-portal load time.
+  const loadedProfileFor = useRef<string | null>(null);
+
   useEffect(() => {
     // Admin portal: never auto-restore session — user must log in fresh each visit
     // Constant string to match the specific portal route
     const fetchProfile = async (u: SupabaseUser | null) => {
       if (!u) {
+        loadedProfileFor.current = null;
         setUser(null);
         setIsLoading(false);
         return;
       }
-      
+
+      if (loadedProfileFor.current === u.id) {
+        setIsLoading(false);
+        return;   // same signed-in user, profile already in state
+      }
+      loadedProfileFor.current = u.id;
+
       let appUser = mapSupabaseUser(u);
       
       try {

@@ -44,7 +44,6 @@ export function ArticlesTab() {
       await supabase.from("articles").insert([{
         ...editing,
         published: editing.published ?? false,
-        featured:  editing.featured  ?? false,
         status:    editing.status    ?? "draft",
       }]);
     }
@@ -53,7 +52,7 @@ export function ArticlesTab() {
     load();
   };
 
-  const toggle = async (id: number, field: "published" | "featured", val: boolean) => {
+  const toggle = async (id: number, field: "published", val: boolean) => {
     await supabase.from("articles").update({ [field]: val }).eq("id", id);
     setItems(p => p.map(a => a.id === id ? { ...a, [field]: val } : a));
   };
@@ -139,11 +138,6 @@ export function ArticlesTab() {
             onChange={e => setEditing(p => ({ ...p!, published: e.target.checked }))} />
           Published (visible on journal page)
         </label>
-        <label style={s.togLbl}>
-          <input type="checkbox" checked={!!editing.featured}
-            onChange={e => setEditing(p => ({ ...p!, featured: e.target.checked }))} />
-          Featured (shows as Sample Article)
-        </label>
       </div>
 
       <div style={{ display: "flex", gap: 10 }}>
@@ -160,7 +154,7 @@ export function ArticlesTab() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h3 style={{ ...s.h3, margin: 0 }}>Articles ({items.length})</h3>
-        <button style={s.primBtn} onClick={() => setEditing({ published: false, featured: false })}>
+        <button style={s.primBtn} onClick={() => setEditing({ published: false })}>
           + New Article
         </button>
       </div>
@@ -182,11 +176,6 @@ export function ArticlesTab() {
                 <input type="checkbox" checked={a.published}
                   onChange={e => toggle(a.id, "published", e.target.checked)} />
                 <span style={{ fontSize: 12 }}>Published</span>
-              </label>
-              <label style={s.togLbl}>
-                <input type="checkbox" checked={a.featured}
-                  onChange={e => toggle(a.id, "featured", e.target.checked)} />
-                <span style={{ fontSize: 12 }}>Featured</span>
               </label>
             </div>
           </div>

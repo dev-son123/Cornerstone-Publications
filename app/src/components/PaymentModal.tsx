@@ -134,13 +134,6 @@ export default function PaymentModal({
         check();
     }, []);
 
-    // Generate a fake transaction ref
-    useEffect(() => {
-        if (step === 'verify') {
-            setTxnId(`CS${Date.now().toString().slice(-8)}`);
-        }
-    }, [step]);
-
     if (!isOpen) return null;
 
     const reset = () => {
@@ -449,10 +442,10 @@ export default function PaymentModal({
             <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-5">
                 <CheckCircle className="w-12 h-12 text-pink-500" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">Payment Confirmed!</h3>
-            <p className="text-gray-500 mb-1">A download link has been sent to</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Submitted for verification</h3>
+            <p className="text-gray-500 mb-1">We've recorded your transaction ID and will confirm your payment by email at</p>
             <p className="font-semibold text-[#FFB7C5] mb-1">{email}</p>
-            <p className="text-xs text-gray-400 mb-6">Ref: {txnId}</p>
+            <p className="text-xs text-gray-400 mb-6">Your reference: {txnId}</p>
             <Button
                 onClick={reset}
                 className="w-full bg-gradient-to-r from-[#FFB7C5] to-[#ff8fab] text-white hover:opacity-90 h-11"
@@ -464,11 +457,11 @@ export default function PaymentModal({
 
     const titles: Record<Step, string> = {
         method: 'Choose Payment Method',
-        qr: 'Scan &amp; Pay',
+        qr: 'Scan & Pay',
         app: 'Pay with UPI App',
         'upi-id': 'Pay via UPI ID',
         verify: 'Confirm Payment',
-        success: 'Success',
+        success: 'Submitted',
     };
 
     const canGoBack = step !== 'method' && step !== 'success';

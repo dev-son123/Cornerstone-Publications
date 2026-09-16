@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, FileText, X, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
-import { AdvancedNav } from '../components/ui/advanced-nav';
-import { Footer } from '../components/Footer';
+import { AdvancedNav } from '@/components/ui/advanced-nav';
+import { Footer } from '@/components/Footer';
 
 const JOURNALS = [
   'Journal of Clinical Nursing and Allied Health Practice',
@@ -23,22 +23,27 @@ interface FormData {
   code: string;
   affiliation: string;
   message: string;
+  /** The admin portal lists submissions by title and pre-fills the publication
+   *  form from it, so without this the whole publish workflow dead-ends. */
+  manuscriptTitle: string;
   journal: string;
   username: string;
   password: string;
 }
+
+const EMPTY_FORM: FormData = {
+  firstName: '', middleName: '', lastName: '',
+  email: '', country: '', code: '',
+  affiliation: '', message: '', manuscriptTitle: '',
+  journal: '', username: '', password: '',
+};
 
 export default function Submission() {
   const navigate = useNavigate();
   const manuscriptRef = useRef<HTMLInputElement>(null);
   const supplementaryRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<FormData>({
-    firstName: '', middleName: '', lastName: '',
-    email: '', country: '', code: '',
-    affiliation: '', message: '', journal: '',
-    username: '', password: '',
-  });
+  const [form, setForm] = useState<FormData>(EMPTY_FORM);
 
   const [manuscriptFile, setManuscriptFile] = useState<File | null>(null);
   const [supplementaryFile, setSupplementaryFile] = useState<File | null>(null);
@@ -50,7 +55,7 @@ export default function Submission() {
   };
 
   const handleReset = () => {
-    setForm({ firstName: '', middleName: '', lastName: '', email: '', country: '', code: '', affiliation: '', message: '', journal: '', username: '', password: '' });
+    setForm(EMPTY_FORM);
     setManuscriptFile(null);
     setSupplementaryFile(null);
     if (manuscriptRef.current) manuscriptRef.current.value = '';
@@ -65,12 +70,19 @@ export default function Submission() {
       toast.error('Please fill in all required fields.');
       return;
     }
+    if (!form.manuscriptTitle.trim()) {
+      toast.error('Please enter your manuscript title.');
+      return;
+    }
     if (!manuscriptFile) {
       toast.error('Please attach your manuscript file.');
       return;
     }
 
     setIsSubmitting(true);
+    // Tracked so a failed database insert does not leave files behind in the
+    // bucket with no submission row pointing at them.
+    const uploadedPaths: string[] = [];
     try {
       let manuscriptUrl = '';
       let supplementaryUrl = '';
@@ -83,32 +95,56 @@ export default function Submission() {
         .upload(filePath, manuscriptFile);
 
       if (uploadError) throw uploadError;
+      uploadedPaths.push(filePath);
       const { data: urlData } = supabase.storage.from('manuscript_files').getPublicUrl(filePath);
       manuscriptUrl = urlData?.publicUrl ?? '';
 
-      // Upload supplementary file if provided
+      // Upload supplementary file if provided.
+      // Note the "manuscripts/" prefix: the storage policy in
+      // SUPABASE_SUBMISSIONS_FIX.sql only allows writes under that path, so the
+      // old "supplementary/" prefix was silently rejected.
       if (supplementaryFile) {
         const ext2 = supplementaryFile.name.split('.').pop();
-        const filePath2 = `supplementary/${Date.now()}_${form.lastName}.${ext2}`;
-        await supabase.storage.from('manuscript_files').upload(filePath2, supplementaryFile);
+        const filePath2 = `manuscripts/supplementary/${Date.now()}_${form.lastName}.${ext2}`;
+        const { error: suppErr } = await supabase.storage
+          .from('manuscript_files')
+          .upload(filePath2, supplementaryFile);
+        if (suppErr) throw suppErr;
+        uploadedPaths.push(filePath2);
         const { data: urlData2 } = supabase.storage.from('manuscript_files').getPublicUrl(filePath2);
         supplementaryUrl = urlData2?.publicUrl ?? '';
       }
 
-      // Insert record into Supabase
-      const { error: dbError } = await supabase.from('submissions').insert([{
-        author_name: `${form.firstName} ${form.middleName} ${form.lastName}`.trim(),
-        author_email: form.email,
-        country: form.country,
-        affiliation_code: form.code,
-        affiliation: form.affiliation,
-        message: form.message,
-        journal: form.journal,
-        manuscript_url: manuscriptUrl,
-        supplementary_url: supplementaryUrl,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      }]);
+      // Insert record into Supabase.
+      // `code` (not `affiliation_code`) is the column name the rest of the app
+      // uses — see JournalSections.tsx's ManuscriptForm. Writing the other name
+      // made PostgREST reject the row with PGRST204 after the upload had already
+      // succeeded, which is why submissions never reached the admin portal.
+      // `status` must be exactly 'Pending Review': it is the label the
+      // Submission Manager renders and the value the insert RLS policy requires.
+      // No .select() here on purpose. Chaining .select() makes PostgREST issue
+      // INSERT ... RETURNING, which additionally requires a SELECT policy on
+      // submissions. Anonymous submitters deliberately have none — they may
+      // create a submission but not read the table back — so asking for the row
+      // turns a perfectly good insert into
+      //   42501 "new row violates row-level security policy".
+      // Verified against the live project: return=minimal → 201,
+      // return=representation → 401.
+      const { error: dbError } = await supabase
+        .from('submissions')
+        .insert([{
+          author_name: `${form.firstName} ${form.middleName} ${form.lastName}`.replace(/\s+/g, ' ').trim(),
+          author_email: form.email,
+          country: form.country,
+          code: form.code,
+          affiliation: form.affiliation,
+          message: form.message,
+          manuscript_title: form.manuscriptTitle.trim(),
+          journal: form.journal,
+          manuscript_url: manuscriptUrl,
+          supplementary_url: supplementaryUrl,
+          status: 'Pending Review',
+        }]);
 
       if (dbError) throw dbError;
 
@@ -133,8 +169,20 @@ export default function Submission() {
       toast.success('Manuscript submitted successfully! We will contact you shortly.');
       setSubmitted(true);
     } catch (err: unknown) {
-      console.error(err);
-      toast.error('Submission failed. Please try again or contact us by email.');
+      console.error('[Submission] failed:', err);
+
+      // Do not leave uploaded files orphaned when the row could not be created.
+      if (uploadedPaths.length) {
+        await supabase.storage.from('manuscript_files').remove(uploadedPaths)
+          .catch(e => console.warn('[Submission] could not clean up uploads:', e));
+      }
+
+      // Surface the real reason instead of a generic message — a silent
+      // failure here is exactly how submissions went missing before.
+      const detail = (err as { message?: string })?.message;
+      toast.error(detail
+        ? `Submission failed: ${detail}`
+        : 'Submission failed. Please try again or contact us by email.');
     } finally {
       setIsSubmitting(false);
     }
@@ -152,6 +200,9 @@ export default function Submission() {
             Thank you, <strong>{form.firstName}</strong>! 
             <br/><br/>
             Your manuscript has been submitted successfully. Our editorial team will review it and contact you at <strong>{form.email}</strong>.
+          </p>
+          <p className="-mt-6 mb-8 text-sm text-gray-500">
+            Status: <strong>Pending Review</strong>. Quote your manuscript title if you contact us about it.
           </p>
           <div className="flex flex-col gap-4">
             <button 
@@ -308,6 +359,25 @@ export default function Submission() {
                   rows={4}
                   className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#d63384] focus:ring-1 focus:ring-[#d63384] resize-y"
                 />
+              </div>
+            </div>
+
+            {/* Manuscript Title — required by the admin portal and by the
+                Convert to Journal Article → Publish workflow */}
+            <div className="p-5 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <label className="text-sm text-gray-600 w-24 flex-shrink-0 text-right">Manuscript Title:</label>
+                <div className="flex-1 flex items-center gap-2">
+                  <input
+                    name="manuscriptTitle"
+                    value={form.manuscriptTitle}
+                    onChange={handleChange}
+                    required
+                    placeholder="Title of your paper"
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-[#d63384] focus:ring-1 focus:ring-[#d63384]"
+                  />
+                  <span className="text-red-500 text-sm">*</span>
+                </div>
               </div>
             </div>
 

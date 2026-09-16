@@ -3,8 +3,8 @@ import { useMeta } from '@/hooks/useMeta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, BookOpen, FileText, Monitor, Database, Video, CheckCircle, Download } from 'lucide-react';
-import { AdvancedNav } from '../components/ui/advanced-nav';
-import { Footer } from '../components/Footer';
+import { AdvancedNav } from '@/components/ui/advanced-nav';
+import { Footer } from '@/components/Footer';
 import { motion } from 'framer-motion';
 
 const modules = [
@@ -51,7 +51,7 @@ export default function ResearchHub() {
 
     const fadeInUp = {
         hidden: { opacity: 0, y: 25 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } }
     };
 
     return (

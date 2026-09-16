@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IntroSplash } from '@/components/IntroSplash';
+import type { Variants } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ImageUploadDemo } from '@/components/ui/demo';
-import { AnimatedMenuLink } from '@/components/ui/menu-hover-effects';
-import { EditorialBoardSection, CurrentIssueSection, PastIssuesSection, ManuscriptForm } from '../components/journal/JournalSections';
-import { SampleArticleSection } from '../components/journal/SampleArticleSection';
+import { EditorialBoardSection, CurrentIssueSection, PastIssuesSection, ManuscriptForm } from '@/components/journal/JournalSections';
 import { getPaperTemplate, getCopyrightTemplate, getConflictTemplate } from '@/utils/documentTemplates';
 import {
     FileText,
@@ -23,85 +21,42 @@ import {
     Database,
 } from 'lucide-react';
 
-const ArticlePage = () => (
-    <div className="max-w-4xl mx-auto my-8 p-8 bg-white rounded-xl shadow-lg border border-gray-100">
-        <h2 className="text-3xl font-bold mb-6 text-gray-900">Sample Article Title</h2>
-        <div className="space-y-2 mb-8 text-gray-700">
-            <p><span className="font-semibold text-gray-900">Author:</span> Example Author</p>
-            <p><span className="font-semibold text-gray-900">Email:</span> example@mail.com</p>
-            <p><span className="font-semibold text-gray-900">Date:</span> 2026</p>
-            <p><span className="font-semibold text-gray-900">Address:</span> Chennai</p>
-        </div>
-        <Button className="mb-8 bg-[#d63384] hover:bg-pink-700 text-white border-none cursor-pointer px-5 py-3">Download PDF</Button>
+type AnimatedMenuLinkProps = {
+    children: ReactNode;
+    onClick?: () => void;
+    active?: boolean;
+    groupClassName?: string;
+    textClassName?: string;
+};
 
-        <h3 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Abstract</h3>
-        <div className="space-y-4 text-gray-700 mb-8">
-            <p><span className="font-semibold text-gray-900">Background:</span> ...</p>
-            <p><span className="font-semibold text-gray-900">Aim:</span> ...</p>
-            <p><span className="font-semibold text-gray-900">Methods:</span> ...</p>
-            <p><span className="font-semibold text-gray-900">Results:</span> ...</p>
-            <p><span className="font-semibold text-gray-900">Conclusion:</span> ...</p>
-        </div>
-
-        <h3 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">References</h3>
-        <p className="text-gray-700 mb-8">Reference content...</p>
-
-        <h3 className="text-xl font-bold mb-2 text-gray-900">Tags</h3>
-        <div className="flex gap-2">
-            <span className="inline-block bg-pink-100 text-pink-800 text-sm px-3 py-1 rounded-full border border-pink-200">health</span>
-            <span className="inline-block bg-pink-100 text-pink-800 text-sm px-3 py-1 rounded-full border border-pink-200">nursing</span>
-        </div>
-    </div>
-);
-
-const AddPublication = () => (
-    <div className="max-w-4xl mx-auto my-8 p-8 bg-white rounded-xl shadow-lg border border-gray-100">
-        <h2 className="text-3xl font-bold mb-6 text-gray-900">Add Publication</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <input placeholder="Title" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-[#d63384] outline-none" />
-            <input placeholder="Author" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-[#d63384] outline-none" />
-            <input placeholder="Email" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-[#d63384] outline-none" />
-            <input type="date" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-[#d63384] outline-none" />
-            <input placeholder="Address" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-[#d63384] outline-none" />
-            <input placeholder="Publication Scene" className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-[#d63384] outline-none" />
-        </div>
-
-        <div className="mb-8 w-full">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">Upload PDF</h3>
-            <ImageUploadDemo />
-        </div>
-
-        <h3 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Abstract</h3>
-        <div className="space-y-4 mb-8">
-            <textarea placeholder="Background" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-            <textarea placeholder="Aim" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-            <textarea placeholder="Methods" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-            <textarea placeholder="Results" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-            <textarea placeholder="Conclusion" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-        </div>
-
-        <h3 className="text-2xl font-bold mb-4 text-gray-900 border-b pb-2">Extra</h3>
-        <div className="space-y-4 mb-8">
-            <textarea placeholder="Site" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-            <textarea placeholder="Electronic" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-            <textarea placeholder="References" className="w-full p-3 border border-gray-300 rounded h-24 focus:ring-2 focus:ring-[#d63384] outline-none"></textarea>
-        </div>
-
-        <input placeholder="Tags" className="w-full p-3 border border-gray-300 rounded mb-8 focus:ring-2 focus:ring-[#d63384] outline-none" />
-
-        <Button size="lg" className="w-full bg-[#d63384] hover:bg-pink-700 text-white border-none cursor-pointer px-5 py-3">Submit</Button>
-    </div>
+const AnimatedMenuLink = ({
+    children,
+    onClick,
+    active = false,
+    groupClassName = '',
+    textClassName = '',
+}: AnimatedMenuLinkProps) => (
+    <button
+        type="button"
+        onClick={onClick}
+        aria-current={active ? 'page' : undefined}
+        className={`group relative overflow-hidden text-left transition-colors duration-300 ${
+            active ? 'bg-[#d63384] text-white' : ''
+        } ${groupClassName}`}
+    >
+        <span className="absolute inset-0 origin-left scale-x-0 bg-[#d63384] transition-transform duration-300 group-hover:scale-x-100" />
+        <span className={`relative ${textClassName}`}>{children}</span>
+    </button>
 );
 
 export default function Journal() {
     const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
-    const fadeInUp: any = {
+    const fadeInUp: Variants = {
         hidden: { opacity: 0, y: 30 },
         visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
     };
-    const [view, setView] = useState<'home' | 'editorial' | 'current' | 'issues' | 'article' | 'submit' | 'add' | 'authors' | 'charges' | 'copyright'>('home');
+    const [view, setView] = useState<'home' | 'editorial' | 'current' | 'issues' | 'submit' | 'authors' | 'charges' | 'copyright'>('home');
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 60);
@@ -124,7 +79,6 @@ export default function Journal() {
     };
 
     // ── Download Copyright Transfer Agreement as PDF ────────────────────
-    // @ts-ignore
     const downloadCopyrightPDF = () => {
         const html = getCopyrightTemplate();
         const blob = new Blob([html], { type: 'text/html' });
@@ -135,7 +89,6 @@ export default function Journal() {
     };
 
     // ── Download Conflict of Interest as PDF ────────────────────
-    // @ts-ignore
     const downloadConflictOfInterestPDF = () => {
         const html = getConflictTemplate();
         const blob = new Blob([html], { type: 'text/html' });
@@ -147,8 +100,6 @@ export default function Journal() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-            <IntroSplash />
-
             <style>{`
                 @keyframes slideInLeft {
                     from { opacity: 0; transform: translateX(-30px); }
@@ -228,12 +179,6 @@ export default function Journal() {
                 >
                     Past Issues
                 </button>
-                <button
-                    onClick={() => setView('article')}
-                    className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${view === 'article' ? 'bg-white text-black border border-white' : 'text-[#d63384] hover:text-white'}`}
-                >
-                    Sample Article
-                </button>
             </div>
 
             {/* Main Content — flush to left edge */}
@@ -289,7 +234,14 @@ export default function Journal() {
 
                             {view === 'current' && (
                                 <div className="max-w-5xl mx-auto py-12">
-                                    <h2 className="text-4xl font-extrabold text-[#0b1120] mb-8 border-b-4 border-[#d63384] inline-block pb-2">Current Issue</h2>
+                                    {/* Read-only by design. Publishing happens ONLY in the
+                                        Admin Portal → Current Issue, so this page renders no
+                                        add/edit/delete control for anyone, administrators
+                                        included. RLS on public.articles blocks writes from
+                                        here regardless. */}
+                                    <div className="mb-8">
+                                        <h2 className="text-4xl font-extrabold text-[#0b1120] border-b-4 border-[#d63384] inline-block pb-2">Current Issue</h2>
+                                    </div>
                                     <CurrentIssueSection />
                                 </div>
                             )}
@@ -298,13 +250,6 @@ export default function Journal() {
                                 <div className="max-w-5xl mx-auto py-12">
                                     <h2 className="text-4xl font-extrabold text-[#0b1120] mb-8 border-b-4 border-[#d63384] inline-block pb-2">Past Issues</h2>
                                     <PastIssuesSection />
-                                </div>
-                            )}
-
-                            {view === 'article' && (
-                                <div className="max-w-4xl mx-auto py-12">
-                                    <h2 className="text-4xl font-extrabold text-[#0b1120] mb-8 border-b-4 border-pink-400 inline-block pb-2">Featured Sample Article</h2>
-                                    <SampleArticleSection />
                                 </div>
                             )}
 
@@ -373,7 +318,10 @@ export default function Journal() {
                                             The submitted manuscripts that are not as per the “Instructions to Authors” would be returned to the authors for technical correction, before they undergo editorial/ peer-review.
                                         </p>
                                         <p className="leading-relaxed text-base font-semibold">
-                                            NOTE:- Before submitting your manuscript, please read the Author's Guidelines <button onClick={() => navigate('#')} className="text-pink-600 underline">(Click to read &gt;&gt;&gt;)</button>.
+                                            {/* Opens the existing Author Guidelines view — the same content the
+                                                sidebar's "AUTHOR'S GUIDELINES" item shows. It previously called
+                                                navigate('#'), which routed to the NotFound page. */}
+                                            NOTE:- Before submitting your manuscript, please read the Author's Guidelines <button type="button" onClick={() => { setView('authors'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-pink-600 underline font-semibold cursor-pointer hover:text-pink-700">(Click to read &gt;&gt;&gt;)</button>.
                                         </p>
                                         <div className="flex flex-col sm:flex-row gap-4 pt-4">
                                             <Button size="lg" onClick={() => setView('submit')} className="bg-[#d63384] hover:bg-[#b5165a] text-white">Submit Article Now</Button>
@@ -726,16 +674,22 @@ export default function Journal() {
                         </div>
                     )}
 
-                    {view === 'issues' && (
-                        <div className="max-w-4xl mx-auto my-8 p-8 bg-white rounded-xl shadow-lg border border-gray-100">
-                            <h2 className="text-3xl font-bold mb-6 text-gray-900">Past Issues</h2>
-                            <p className="text-gray-700">List of past issues will be displayed here...</p>
+                    {view === 'submit' && (
+                        <div className="max-w-2xl mx-auto">
+                            <div className="mb-5 p-4 bg-pink-50 border border-pink-200 rounded-lg flex items-center justify-between gap-4 flex-wrap">
+                                <p className="text-sm text-gray-700">
+                                    Have your manuscript file ready? Use the full submission form to upload it directly.
+                                </p>
+                                <a
+                                    href="/submit"
+                                    className="shrink-0 px-4 py-2 bg-pink-600 text-white rounded-md text-sm font-semibold hover:bg-pink-700 transition-colors"
+                                >
+                                    Submit with file →
+                                </a>
+                            </div>
+                            <ManuscriptForm />
                         </div>
                     )}
-
-                    {view === 'article' && <ArticlePage />}
-                    {view === 'submit' && <ManuscriptForm />}
-                    {view === 'add' && <AddPublication />}
 
                     {view === 'authors' && (
                         <div className="max-w-4xl mx-auto">
@@ -1013,13 +967,9 @@ export default function Journal() {
                     </motion.div>
                 </AnimatePresence>
 
-                {/* Floating Add Button */}
-                <button
-                        onClick={() => setView('add')}
-                        className="fixed bottom-6 right-6 w-[60px] h-[60px] rounded-full bg-[#00bfff] text-white text-3xl shadow-xl flex items-center justify-center hover:bg-[#0099cc] transition-colors z-50 border-none cursor-pointer"
-                    >
-                        +
-                    </button>
+                {/* No publishing control lives on the public journal at all.
+                    Admin Portal → Current Issue is the single place articles are
+                    created, published or deleted. */}
                 </div>
             </main>
 

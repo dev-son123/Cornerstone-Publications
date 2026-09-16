@@ -20,9 +20,10 @@ export function PublicationsTab({ pubForm, onChange, onPublish, isPublishing }: 
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.from('past_issues').select('label, volume, year').order('year', { ascending: false }).then(({ data }) => {
-      setExistingIssues(data || []);
-    });
+    supabase.from('past_issues')
+      .select('id, label, volume, year, issue_range')
+      .order('year', { ascending: false })
+      .then(({ data }) => { setExistingIssues(data || []); });
   }, []);
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -37,8 +38,9 @@ export function PublicationsTab({ pubForm, onChange, onPublish, isPublishing }: 
     if (f) setPdfFile(f);
   };
 
-  const handleUpload = async () => {
-    if (!pdfFile) return;
+  /** Uploads the chosen PDF and returns its public URL. */
+  const doUpload = async (): Promise<string> => {
+    if (!pdfFile) return '';
     setUploading(true);
     try {
       const fileName = `${Date.now()}_${pdfFile.name.replace(/\s+/g, '_')}`;
@@ -48,20 +50,36 @@ export function PublicationsTab({ pubForm, onChange, onPublish, isPublishing }: 
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from('article-pdfs').getPublicUrl(fileName);
       setUploadedUrl(publicUrl);
-      
+
       // Update the parent's form state immediately
       onChange({ target: { name: 'pdf_url', value: publicUrl } } as any);
-      
-      toast.success('PDF uploaded and attached to publication!');
-    } catch (err: any) {
-      toast.error('Upload failed: ' + err.message);
+      return publicUrl;
     } finally {
       setUploading(false);
     }
   };
 
+  const handleUpload = async () => {
+    try {
+      await doUpload();
+      toast.success('PDF uploaded and attached to publication!');
+    } catch (err: any) {
+      toast.error('Upload failed: ' + err.message);
+    }
+  };
+
   const handlePublishWithPdf = async () => {
-    // pdf_url is already in pubForm thanks to handleUpload or conversion
+    // A PDF that was chosen but never uploaded used to be silently dropped —
+    // the article published with no pdf_url and the admin had no idea. Upload
+    // it here first, and abort the publish if that fails.
+    if (pdfFile && !uploadedUrl) {
+      try {
+        await doUpload();
+      } catch (err: any) {
+        toast.error('PDF upload failed, article not published: ' + err.message);
+        return;
+      }
+    }
     await onPublish();
     setPdfFile(null);
     setUploadedUrl('');
@@ -97,20 +115,24 @@ export function PublicationsTab({ pubForm, onChange, onPublish, isPublishing }: 
             </div>
           </div>
 
+          {/* Shown when the form was pre-filled from a submission, so the admin can
+              see the link that will be recorded on the published article. */}
+          {(pubForm as any).submissionId && (
+            <div className="mb-6 px-4 py-3 rounded-xl bg-pink-50 border border-pink-200 text-sm text-pink-900">
+              Publishing from submission <strong>#{(pubForm as any).submissionId}</strong>
+              {(pubForm as any).journal ? <> · {(pubForm as any).journal}</> : null}
+              . On success the submission is marked <strong>Accepted</strong> and linked to this article.
+            </div>
+          )}
+
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
             {fields1.map(f => (
               <div key={f.name} className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">{f.label}</label>
                 {f.name === 'volume' ? (
-                  <select name={f.name} value={(pubForm as any)[f.name]} onChange={onChange}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm appearance-none">
-                    <option value="">Select or type a Collection...</option>
-                    {existingIssues.map((issue, idx) => (
-                      <option key={idx} value={issue.label}>{issue.label} (Vol {issue.volume})</option>
-                    ))}
-                    <option value="khhbh">Other...</option>
-                  </select>
+                  <input name={f.name} value={(pubForm as any)[f.name]} onChange={onChange} placeholder={f.placeholder}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
                 ) : (
                   <input name={f.name} value={(pubForm as any)[f.name]} onChange={onChange} placeholder={f.placeholder}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
@@ -123,6 +145,56 @@ export function PublicationsTab({ pubForm, onChange, onPublish, isPublishing }: 
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
             </div>
           </div>
+
+          {/* Volume / Issue numbers decide which issue the article is filed under.
+              Left blank, the article inherits the issue currently on display. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Volume No.</label>
+              <input name="volumeNo" type="number" value={(pubForm as any).volumeNo ?? ''} onChange={onChange} placeholder="e.g. 3"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Issue No.</label>
+              <input name="issueNo" type="number" value={(pubForm as any).issueNo ?? ''} onChange={onChange} placeholder="e.g. 2"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mb-5">
+            Leave both blank to publish into the issue currently shown under Journal → Current Issue.
+          </p>
+
+          {/* Archive collection (past_issues.id) + citation metadata.
+              Picking a collection files the paper under Journal → Past Issues →
+              that collection. Left as "Current Issue only", the article stays
+              unfiled and appears only in the current issue. */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Archive Collection</label>
+              <select name="pastIssueId" value={(pubForm as any).pastIssueId ?? ''} onChange={onChange}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm">
+                <option value="">Current Issue only (not archived)</option>
+                {existingIssues.map(issue => (
+                  <option key={issue.id} value={issue.id}>
+                    {issue.label} — Vol {issue.volume} · {issue.year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Pages</label>
+              <input name="pages" value={(pubForm as any).pages ?? ''} onChange={onChange} placeholder="e.g. 112-119"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">DOI</label>
+              <input name="doi" value={(pubForm as any).doi ?? ''} onChange={onChange} placeholder="e.g. 10.1234/jcnap.2024.3.2.5"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#d63384]/20 focus:border-[#d63384] outline-none transition-all text-sm" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mb-8">
+            Choosing a collection files this paper under Journal → Past Issues, grouped by its Issue No.
+          </p>
 
           {/* ── PDF Upload ── */}
           <div className="mb-8 p-6 rounded-2xl border-2 border-dashed border-pink-200 bg-pink-50/40">

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { Mail, Phone, MessageCircle, Clock } from 'lucide-react';
-import { ContactForm } from '../components/ContactForm';
-import { AdvancedNav } from '../components/ui/advanced-nav';
-import { Footer } from '../components/Footer';
+import { ContactForm } from '@/components/ContactForm';
+import { AdvancedNav } from '@/components/ui/advanced-nav';
+import { Footer } from '@/components/Footer';
 
 const ContactSupport = () => {
   useEffect(() => {

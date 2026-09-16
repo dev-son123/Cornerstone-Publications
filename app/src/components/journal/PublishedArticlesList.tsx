@@ -56,11 +56,6 @@ export function PublishedArticlesList() {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ flex: 1 }}>
-                {article.featured && (
-                  <span style={{ display: 'inline-block', background: '#fce7f3', color: '#d63384', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, marginBottom: 8, textTransform: 'uppercase' }}>
-                    ⭐ Featured
-                  </span>
-                )}
                 <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1a1a2e', margin: '0 0 6px', lineHeight: 1.4 }}>
                   {article.title}
                 </h3>

@@ -19,6 +19,11 @@ import NotFound from '@/pages/NotFound';
 import Payments from '@/pages/Payments';
 import OrderHardcopy from '@/pages/OrderHardcopy';
 import Pricing from '@/pages/Pricing';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import Dashboard from '@/pages/Dashboard';
+import Submission from '@/pages/Submission';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 
@@ -144,6 +149,17 @@ function App() {
               <Route path="/payments" element={<Payments />} />
               <Route path="/order-hardcopy" element={<OrderHardcopy />} />
               <Route path="/pricing" element={<Pricing onNavigate={() => {}} />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/submit" element={<Submission />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

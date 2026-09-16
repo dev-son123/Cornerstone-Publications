@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FileText, Clock, CheckCircle2, XCircle, RefreshCw, Send, AlertCircle, FileUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/context/AuthContext';
 
 interface Submission {
   id: number;
@@ -21,22 +22,35 @@ const STATUS_MAP: Record<string, { color: string; bg: string; icon: any; desc: s
 };
 
 export function AuthorView({ userId }: { userId: string }) {
+  const { user } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const email = user?.email;
 
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
-      const { data } = await supabase
+      // The public submission form is not behind a login, so submissions are
+      // created with user_id NULL. Filtering on user_id alone therefore matched
+      // nothing and every author saw an empty dashboard. Match on the author's
+      // email as well — which is exactly what the submissions RLS policy allows
+      // them to read, so this widens the client query, not their access.
+      const filter = email
+        ? `user_id.eq.${userId},author_email.eq.${email}`
+        : `user_id.eq.${userId}`;
+
+      const { data, error } = await supabase
         .from('submissions')
-        .select('*')
-        .eq('user_id', userId)
+        .select('id, manuscript_title, status, created_at, journal')
+        .or(filter)
         .order('created_at', { ascending: false });
+
+      if (error) console.error('[AuthorView] load failed:', error);
       setSubmissions((data || []) as Submission[]);
       setLoading(false);
     };
     fetch();
-  }, [userId]);
+  }, [userId, email]);
 
   return (
     <div className="max-w-5xl mx-auto py-8">

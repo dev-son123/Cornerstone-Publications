@@ -30,8 +30,8 @@ export function AdvancedNav() {
         supabase.from('articles').select('id').limit(1)
             .then(({ error }) => {
                 if (error && (
-                    error.message.includes('fetch') || 
-                    error.message.includes('Network') || 
+                    error.message.includes('fetch') ||
+                    error.message.includes('Network') ||
                     error.message.includes('resolve') ||
                     error.message.includes('Failed to fetch')
                 )) {
@@ -39,8 +39,7 @@ export function AdvancedNav() {
                 } else {
                     setDbConnected(true);
                 }
-            })
-            .catch(() => {
+            }, () => {
                 setDbConnected(false);
             });
     }, []);

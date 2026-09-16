@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { AdvancedNav } from '../components/ui/advanced-nav';
-import { Footer } from '../components/Footer';
+import { AdvancedNav } from '@/components/ui/advanced-nav';
+import { Footer } from '@/components/Footer';
 
 export default function PrivacyPolicy() {
     useEffect(() => {

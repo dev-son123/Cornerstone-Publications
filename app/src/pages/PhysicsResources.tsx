@@ -3,8 +3,8 @@ import { useMeta } from '@/hooks/useMeta';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Search, BookOpen, FileText, CheckCircle, Download } from 'lucide-react';
-import { AdvancedNav } from '../components/ui/advanced-nav';
-import { Footer } from '../components/Footer';
+import { AdvancedNav } from '@/components/ui/advanced-nav';
+import { Footer } from '@/components/Footer';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -46,7 +46,7 @@ export default function PhysicsResources() {
 
     const fadeInUp = {
         hidden: { opacity: 0, y: 25 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' as const } }
     };
 
     return (
