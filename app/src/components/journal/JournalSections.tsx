@@ -1,6 +1,6 @@
 // src/components/journal/JournalSections.tsx
 // All data comes live from Supabase.
-// When admin toggles Published/Featured/Visible → change appears here immediately.
+// When admin toggles Published/Visible → change appears here immediately.
 
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
